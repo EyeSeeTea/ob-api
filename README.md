@@ -23,3 +23,5 @@ yarn install
 
 1. Set `version` in `package.json`. Use a `-beta.N` suffix to publish with the `beta` tag.
 2. Run `yarn release`. It builds, publishes `build/` to npm, and pushes a `v<version>` git tag.
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the architecture and the conventions.
