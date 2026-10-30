@@ -1,0 +1,42 @@
+{
+    "name": "@eyeseetea/ob-api",
+    "version": "0.1.0",
+    "description": "OpenBoxes API library",
+    "author": "EyeSeeTea team <info@eyeseetea.com>",
+    "license": "GPL-3.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/EyeSeeTea/ob-api.git"
+    },
+    "main": "index.js",
+    "types": "index.d.ts",
+    "engines": {
+        "node": ">=22.12.0"
+    },
+    "packageManager": "yarn@4.18.1",
+    "scripts": {
+        "clean": "rimraf build",
+        "build-base": "mkdir -p build && cp README.md LICENSE package.json build/ && tsc -p tsconfig.build.json",
+        "build": "yarn clean && yarn check && yarn build-base",
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint src",
+        "prettify": "prettier \"{.,src}/**/*.{js,mjs,ts,json}\" --write",
+        "prettify-check": "prettier \"{.,src}/**/*.{js,mjs,ts,json}\" --check",
+        "test": "vitest",
+        "check": "yarn typecheck && yarn lint && yarn prettify-check && yarn test",
+        "prerelease": "yarn build",
+        "release": "bash scripts/publish.sh"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^22.20.5",
+        "eslint": "^10.13.0",
+        "globals": "^17.13.0",
+        "prettier": "^3.9.10",
+        "rimraf": "^6.1.3",
+        "typescript": "~6.0.3",
+        "typescript-eslint": "^8.72.1",
+        "vite": "^8.3.5",
+        "vitest": "^5.0.5"
+    }
+}

@@ -1,0 +1,32 @@
+# Logs
+*.log
+
+# Dependencies and build output
+node_modules/
+build/
+coverage/
+*.tgz
+
+# Yarn (Berry)
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
