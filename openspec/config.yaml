@@ -22,7 +22,7 @@ rules:
     - If changing public interfaces, explicitly list old vs new.
 
   design:
-    - Must describe: data flow through the architecture layers.
+    - "Must describe: data flow through the architecture layers."
     - Note known constraints when relevant.
 
   tasks:
