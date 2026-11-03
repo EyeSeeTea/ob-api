@@ -49,13 +49,13 @@ None.
 
 There is no earlier release of `ob-api`, so nothing breaks. Projects that migrate from the UNICEF-TJK-scripts client must make these edits:
 
-| UNICEF-TJK-scripts `OBApi` | `ob-api` `OBApi` |
-| --- | --- |
+| UNICEF-TJK-scripts `OBApi`                                   | `ob-api` `OBApi`                                    |
+| ------------------------------------------------------------ | --------------------------------------------------- |
 | `await OBApi.create({ baseUrl, auth, locationId, timeout })` | `new OBApi({ baseUrl, auth, locationId, timeout })` |
-| `api.get("openboxes/api/products")` | `api.get("/products")` |
-| `api.patch(url, data, params)` | `api.patch(url, params, data)` |
-| Errors are axios errors | Errors are `HttpError` |
-| Manual `login()` before each job for stale sessions | Not necessary; `login(locationId?)` stays available |
+| `api.get("openboxes/api/products")`                          | `api.get("/products")`                              |
+| `api.patch(url, data, params)`                               | `api.patch(url, params, data)`                      |
+| Errors are axios errors                                      | Errors are `HttpError`                              |
+| Manual `login()` before each job for stale sessions          | Not necessary; `login(locationId?)` stays available |
 
 ## Rollback plan
 

@@ -45,7 +45,7 @@ The client SHALL build each request URL from `baseUrl`, then `apiPath`, then the
 
 ### Requirement: Query parameter encoding
 
-The client SHALL encode query parameter values. It SHALL repeat the key for each value of an array parameter. It SHALL leave out parameters whose value is `undefined`.
+The client SHALL encode query parameter values. It SHALL repeat the key for each value of an array parameter. It SHALL leave out parameters whose value is `undefined`. When the URL already has a query string, the client SHALL add the parameters to it.
 
 #### Scenario: Array parameter
 
@@ -56,6 +56,11 @@ The client SHALL encode query parameter values. It SHALL repeat the key for each
 
 - **WHEN** the caller runs `get("/products", { q: undefined, max: 5 })`
 - **THEN** the query is `max=5`
+
+#### Scenario: URL with a query string
+
+- **WHEN** the caller runs `get("/products/1/availableItems?location.id=2", { max: 5 })`
+- **THEN** the query is `location.id=2&max=5`
 
 ### Requirement: Response data is returned as received
 
@@ -68,7 +73,7 @@ The client SHALL return the parsed response body without changes. It SHALL NOT u
 
 ### Requirement: Failed requests raise an HTTP error
 
-When the response status is not 2xx, or the request fails without a response, the client SHALL reject with an HTTP error. The error SHALL contain the request and, when the server responded, the response status, headers and body.
+When the response status is not 2xx, when a body sent as JSON does not parse, or when the request fails without a response, the client SHALL reject with an HTTP error. The error SHALL contain the request and, when the server responded, the response status, headers and body.
 
 #### Scenario: Server error
 
@@ -79,6 +84,11 @@ When the response status is not 2xx, or the request fails without a response, th
 
 - **WHEN** the server cannot be reached
 - **THEN** the request rejects with an HTTP error that contains the request and no response
+
+#### Scenario: Invalid JSON body
+
+- **WHEN** the server responds with status `200`, a JSON content type and a body that is not valid JSON
+- **THEN** the request rejects with an HTTP error that contains the status `200` and the body as text
 
 ### Requirement: Timeout
 
@@ -91,9 +101,14 @@ When a `timeout` in milliseconds is set, the client SHALL abort a request that t
 
 ### Requirement: Cancellation
 
-The caller SHALL be able to cancel a request that is in progress. A canceled request SHALL reject, and the caller SHALL be able to tell a cancellation from other errors.
+The caller SHALL be able to cancel a request that is in progress, with an optional message. A canceled request SHALL reject, and the caller SHALL be able to tell a cancellation from other errors. The error SHALL keep the cancel message.
 
 #### Scenario: Cancel a request
 
 - **WHEN** the caller cancels a request before the server responds
 - **THEN** the request rejects with an error that the library identifies as a cancellation
+
+#### Scenario: Cancel with a message
+
+- **WHEN** the caller runs `cancel("Page closed")` before the server responds
+- **THEN** the request rejects with a cancellation whose message is `Page closed`

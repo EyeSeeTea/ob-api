@@ -13,4 +13,4 @@ Write rules as invariants ("must", "never", "no …"), one topic per file (e.g. 
 
 | File | Covers |
 |------|--------|
-| — | — |
+| [`http-boundary-cast.md`](http-boundary-cast.md) | Exception: the response body cast to `Data` in HTTP client repositories |

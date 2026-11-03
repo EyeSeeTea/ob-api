@@ -96,9 +96,14 @@ In Node, the client SHALL keep the session cookie from the login response and SH
 
 ### Requirement: Session cookie in the browser
 
-In the browser, the client SHALL send requests with browser credentials included, so the browser stores and sends the session cookie.
+In the browser, the client SHALL send requests with browser credentials included, so the browser stores and sends the session cookie. It SHALL also work in browsers whose response headers have no `getSetCookie`.
 
 #### Scenario: Browser request
 
 - **WHEN** the client sends a request in the browser
 - **THEN** the request includes browser credentials
+
+#### Scenario: Browser without getSetCookie
+
+- **WHEN** the response headers have no `getSetCookie` method
+- **THEN** the request succeeds and later requests send no `Cookie` header

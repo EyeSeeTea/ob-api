@@ -64,12 +64,12 @@ Constraints:
 
 Layer map (matches d2-api):
 
-| Folder | Contents |
-| --- | --- |
+| Folder              | Contents                                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `src/repositories/` | `HttpClientRepository` interface, `HttpRequest`, `HttpClientResponse`, `HttpError`, `CancelableResponse`, `isCancel` |
-| `src/data/` | `FetchHttpClientRepository` |
-| `src/api/` | `OBApi`, the session logic, `OBApiOptions` |
-| `src/utils/` | `joinPath`, query string building, `Set-Cookie` parsing |
+| `src/data/`         | `FetchHttpClientRepository`                                                                                          |
+| `src/api/`          | `OBApi`, the session logic, `OBApiOptions`                                                                           |
+| `src/utils/`        | `joinPath`, query string building, `Set-Cookie` parsing                                                              |
 
 ## Decisions
 
@@ -127,7 +127,7 @@ The generic client returns the body as received. Typed endpoints added later unw
 
 ## Risks / Trade-offs
 
-- [OpenBoxes may answer an expired session with a redirect to the login page (HTML, status 200) instead of `401`] → Verify on a real server before release. When it redirects, add `redirect: "manual"` and treat the redirect as `401`, in a follow-up change.
+- [OpenBoxes may answer an expired session with a redirect to the login page (HTML, status 200) instead of `401`] → Checked on a test server (2026-11-03): OpenBoxes redirects to `/openboxes/errors/handleUnauthorized`, which answers `401` with a JSON body. `fetch` follows the redirect, so the client sees `401` and the retry works. Only `GET` was checked.
 - [The simple cookie store ignores path, domain and expiry] → One client talks to one server, and OpenBoxes uses one session cookie. A server that sets many cookies with different paths needs a real jar later.
 - [Retry sends a `POST` twice] → A `401` means the server rejected the request before it ran, so the retry does not apply a change twice.
 - [Copied `CancelableResponse` drifts from d2-api] → Keep the public shape the same. A shared package can replace both copies later.
@@ -139,4 +139,4 @@ No migration in this repository: nothing is released. UNICEF-TJK-scripts can mig
 
 ## Open Questions
 
-- Does OpenBoxes send `401` or a redirect for an expired session on `/openboxes/api/*`? See the first risk. This change covers `401` only. When the server redirects, a follow-up change extends the `api-session` retry requirement to the redirect.
+- ~~Does OpenBoxes send `401` or a redirect for an expired session on `/openboxes/api/*`?~~ Answered: a redirect that ends in `401`. See the first risk.
