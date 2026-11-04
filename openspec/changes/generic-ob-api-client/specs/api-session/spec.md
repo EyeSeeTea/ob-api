@@ -45,7 +45,7 @@ When several requests need a login at the same time, the client SHALL send one l
 
 ### Requirement: Explicit login
 
-The client SHALL supply `login(locationId?)`. It SHALL log in again even when a session exists. When `locationId` is given, the client SHALL use it for this login and for all later logins.
+The client SHALL supply `login(locationId?)`. It SHALL log in again even when a session exists. When `locationId` is given, the client SHALL use it for this login. When that login succeeds, the client SHALL use the location for all later logins. When it fails, later logins SHALL keep the location of the last successful login.
 
 #### Scenario: Change location
 
@@ -56,6 +56,11 @@ The client SHALL supply `login(locationId?)`. It SHALL log in again even when a 
 
 - **WHEN** the caller runs `login()` on a logged-in client
 - **THEN** the client sends a new login request with the current location
+
+#### Scenario: Failed location change
+
+- **WHEN** the client logged in with `"L1"`, and `login("L2")` fails
+- **THEN** `login("L2")` rejects, and the next automatic login uses `"L1"`
 
 ### Requirement: Login failure
 

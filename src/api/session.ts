@@ -20,7 +20,8 @@ export type SessionOptions = Readonly<{
 }>;
 
 /*
- * Holds the mutable session state in one closure: the login in progress (or done) and the location.
+ * Holds the mutable session state in one closure: the login in progress (or done) and the location
+ * of the last successful login.
  * Requests that need a login share the same promise, so concurrent requests cause one login.
  */
 export function createSession(options: SessionOptions): Session {
@@ -28,14 +29,14 @@ export function createSession(options: SessionOptions): Session {
     let locationId = options.locationId;
     let loginPromise: Promise<void> | undefined;
 
-    function startLogin(): Promise<void> {
+    function startLogin(loginLocationId = locationId): Promise<void> {
         const request: HttpRequest = {
             method: "post",
             url: loginUrl,
             data: {
                 username: auth.username,
                 password: auth.password,
-                ...(locationId ? { location: locationId } : {}),
+                ...(loginLocationId ? { location: loginLocationId } : {}),
             },
         };
 
@@ -43,7 +44,11 @@ export function createSession(options: SessionOptions): Session {
             .request<unknown>(request)
             .response()
             .then(
-                () => undefined,
+                // Keep the location only when the server accepted it, so a failed change does not
+                // break later automatic logins.
+                () => {
+                    locationId = loginLocationId;
+                },
                 (error: unknown) => {
                     // Clear the failed login so the next request tries again.
                     if (loginPromise === promise) loginPromise = undefined;
@@ -98,8 +103,7 @@ export function createSession(options: SessionOptions): Session {
     }
 
     function login(newLocationId?: string): Promise<void> {
-        locationId = newLocationId ?? locationId;
-        return startLogin();
+        return startLogin(newLocationId ?? locationId);
     }
 
     return { send, login };

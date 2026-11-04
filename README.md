@@ -48,8 +48,10 @@ You do not log in yourself. The first request logs in to `<apiPath>/login` and t
 To change the location, or to refresh the session, call `login`:
 
 ```ts
-await api.login("8a8a9e9665c4f59d0165c54ec6b10028"); // later logins also use this location
+await api.login("8a8a9e9665c4f59d0165c54ec6b10028"); // when it succeeds, later logins use this location
 ```
+
+When the login fails (for example, the user has no access to that location), `login` rejects and the client keeps the location of the last successful login.
 
 ### Errors and cancellation
 

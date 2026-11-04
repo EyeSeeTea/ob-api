@@ -42,6 +42,13 @@ function expireFirst(count: number): Respond {
 }
 
 const urlsOf = (fetchCalls: ReadonlyArray<FetchCall>) => fetchCalls.map(call => call.url);
+
+function loginLocationOf(call: FetchCall): unknown {
+    const body = bodyOf(call);
+    return typeof body === "object" && body !== null && "location" in body
+        ? body.location
+        : undefined;
+}
 const loginsIn = (fetchCalls: ReadonlyArray<FetchCall>) =>
     fetchCalls.filter(call => call.url === LOGIN_URL);
 
@@ -120,6 +127,26 @@ describe("Explicit login", () => {
         expect(locations).toEqual([
             { username: "user", password: "secret", location: "L2" },
             { username: "user", password: "secret", location: "L2" },
+        ]);
+    });
+
+    it("keeps the last accepted location when a location change fails", async () => {
+        const calls = stubFetch(call => {
+            if (call.url !== LOGIN_URL) return jsonResponse({});
+            return loginLocationOf(call) === "L2" ? UNAUTHORIZED() : loginResponse();
+        });
+        const api = newApi("L1");
+
+        await api.get("/products").getData();
+        const error = await httpErrorOf(api.login("L2"));
+        await api.get("/products").getData();
+
+        expect(error.response?.status).toEqual(401);
+        const locations = loginsIn(calls()).map(call => bodyOf(call));
+        expect(locations).toEqual([
+            { username: "user", password: "secret", location: "L1" },
+            { username: "user", password: "secret", location: "L2" },
+            { username: "user", password: "secret", location: "L1" },
         ]);
     });
 
