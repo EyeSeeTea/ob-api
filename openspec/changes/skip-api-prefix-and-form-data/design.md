@@ -39,3 +39,14 @@ With `baseUrl` `https://ob.example.org`, the caller writes `openboxes/stockMovem
 
 - [`skipApiPrefix` URLs include the `openboxes` context path] → The caller writes the path after `baseUrl`. README shows an example.
 - [A caller who sent a `Blob` with `requestBodyType: "json"` on purpose] → `JSON.stringify(blob)` is `{}`, so no working caller depends on it.
+- [An expired session on a path outside `apiPath`] → OpenBoxes (`SecurityInterceptor`, `RequestUtil.isAjax`) answers `401` to any request that accepts JSON, on every path. The client always sends `Accept: application/json, text/plain`, so the retry works. A test protects this header. A caller who sets `Accept` without `application/json` gets the HTML login page with `200` and no retry; README warns about it.
+
+## Live check
+
+2026-11-05, UNICEF OpenBoxes server (`0.9.7-SNAPSHOT`), GET requests and logins only:
+
+1. `GET openboxes/info` with `skipApiPrefix` → `200`, version `0.9.7-SNAPSHOT`.
+2. Expired session, `GET openboxes/stockMovement/list` with `skipApiPrefix` → `401`, login, retry → `200`.
+3. The same with `Accept: text/html` → redirected to `/openboxes/auth/login`, `200` HTML, no login. This is the case README warns about.
+
+The upload itself (`POST stockMovement/uploadDocument`) was not sent: it writes data on the UNICEF server.
