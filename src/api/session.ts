@@ -103,7 +103,7 @@ export function createSession(options: SessionOptions): Session {
     }
 
     function login(newLocationId?: string): Promise<void> {
-        return startLogin(newLocationId ?? locationId);
+        return startLogin(newLocationId);
     }
 
     return { send, login };
