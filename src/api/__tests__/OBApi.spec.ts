@@ -96,6 +96,25 @@ describe("OBApi URLs", () => {
             `${BASE_URL}/api/products`,
         ]);
     });
+
+    it("skips the API path on request, but still logs in under it", async () => {
+        const calls = stubServer();
+        const api = new OBApi({ baseUrl: BASE_URL, auth: AUTH });
+        const formData = new FormData();
+        formData.append("fileContents", new Blob(["pdf"]), "delivery-note.pdf");
+
+        await api
+            .post("openboxes/stockMovement/uploadDocument/1", undefined, formData, {
+                skipApiPrefix: true,
+            })
+            .getData();
+
+        expect(calls().map(call => call.url)).toEqual([
+            LOGIN_URL,
+            `${BASE_URL}/openboxes/stockMovement/uploadDocument/1`,
+        ]);
+        expect(calls()[1]?.init.body).toBe(formData);
+    });
 });
 
 describe("OBApi responses", () => {

@@ -52,7 +52,7 @@ src/
   index.ts        Public exports
 ```
 
-The client depends on the `HttpClientRepository` interface, not on a specific HTTP library. A request goes `OBApi` (adds `apiPath`) → session (logs in when necessary, retries once on `401`) → `HttpClientRepository` (adds `baseUrl`, sends with `fetch`). Requests return a `CancelableResponse`, the same type that d2-api returns, so apps can wrap both libraries the same way.
+The client depends on the `HttpClientRepository` interface, not on a specific HTTP library. A request goes `OBApi` (adds `apiPath`, unless the request sets `skipApiPrefix`) → session (logs in when necessary, retries once on `401`) → `HttpClientRepository` (adds `baseUrl`, sends with `fetch`). Requests return a `CancelableResponse`, the same type that d2-api returns, so apps can wrap both libraries the same way.
 
 The library must run in Node and in the browser. It uses one `fetch` backend, because `fetch` works in both, as in d2-api. OpenBoxes keeps the login session in a cookie. In Node, the client keeps the cookie from the login response and sends it with each request. In the browser, the browser keeps the cookie (`credentials: "include"`).
 

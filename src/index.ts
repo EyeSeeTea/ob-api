@@ -1,5 +1,5 @@
 export { OBApi } from "./api/OBApi";
-export type { OBApiOptions } from "./api/OBApi";
+export type { OBApiOptions, OBApiRequest } from "./api/OBApi";
 export { FetchHttpClientRepository } from "./data/FetchHttpClientRepository";
 export { CancelableResponse, isCancel } from "./repositories/CancelableResponse";
 export type { Canceler } from "./repositories/CancelableResponse";

@@ -37,6 +37,20 @@ Request URLs are relative to `<baseUrl>/<apiPath>`. `apiPath` is `openboxes/api`
 
 A URL can already have a query string. The client adds `params` to it: `api.get("/products/1/availableItems?location.id=2", { max: 5 })` requests `…/availableItems?location.id=2&max=5`.
 
+Some OpenBoxes paths are not under `apiPath`. Set `skipApiPrefix: true` to make the URL relative to `baseUrl`. `post()` takes it in its last argument, and `request()` takes it in its options. The login still uses `apiPath`.
+
+```ts
+await api
+    .post("openboxes/stockMovement/uploadDocument/1", undefined, formData, { skipApiPrefix: true })
+    .getData();
+```
+
+### Request and response bodies
+
+The client sends a plain body (object, array, string) as JSON. It sends a `FormData`, `Blob`, `URLSearchParams`, `ArrayBuffer` or typed-array body as it is, and does not set `Content-Type`: the runtime sets it, with the multipart boundary for `FormData`.
+
+To get the body without parsing, use `request({ method: "get", url, responseDataType: "raw" })`. The data is a `Blob`. If you migrate from a client that gave an `ArrayBuffer`, call `await blob.arrayBuffer()`; in Node, `Buffer.from(await blob.arrayBuffer())`.
+
 ### Session
 
 You do not log in yourself. The first request logs in to `<apiPath>/login` and the client keeps the session:
@@ -44,6 +58,8 @@ You do not log in yourself. The first request logs in to `<apiPath>/login` and t
 - In Node, the client keeps the session cookie and sends it with each request.
 - In the browser, the browser keeps the cookie. The app and OpenBoxes must share a domain, or OpenBoxes must allow cross-domain requests with cookies.
 - When a request gets status `401` (the session expired), the client logs in again and sends the request one more time.
+
+OpenBoxes answers an expired session with `401` only when the request accepts JSON. The client sends `Accept: application/json, text/plain` on every request. If you set your own `Accept` header, keep `application/json` in it. If you do not, OpenBoxes sends its HTML login page with status `200`: the request looks successful and the client does not log in again.
 
 To change the location, or to refresh the session, call `login`:
 

@@ -60,14 +60,18 @@ export function getBody(
     data: unknown
 ): BodyInit | undefined {
     if (data === undefined) return undefined;
-    if (dataType !== "raw") return JSON.stringify(data);
-    if (isBodyInit(data)) return data;
+    if (isJsonBody(dataType, data)) return JSON.stringify(data);
+    if (isPassThroughBody(data) || typeof data === "string") return data;
     throw new Error("Raw request body must be a string, Blob, FormData, URLSearchParams or buffer");
 }
 
-function isBodyInit(data: unknown): data is BodyInit {
+export function isJsonBody(dataType: HttpRequest["requestBodyType"], data: unknown): boolean {
+    return data !== undefined && dataType !== "raw" && !isPassThroughBody(data);
+}
+
+/* Sent as they are whatever requestBodyType says: JSON.stringify would turn them into "{}". */
+function isPassThroughBody(data: unknown): data is BodyInit {
     return (
-        typeof data === "string" ||
         data instanceof Blob ||
         data instanceof FormData ||
         data instanceof URLSearchParams ||

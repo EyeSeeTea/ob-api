@@ -47,6 +47,41 @@ describe("FetchHttpClientRepository requests", () => {
         expect(headersOf(calls()[0])["content-type"]).toEqual("application/json;charset=UTF-8");
     });
 
+    it("sends form data as it is, without a content type, so fetch adds the boundary", async () => {
+        const calls = stubFetch(() => Promise.resolve(jsonResponse({})));
+        const formData = new FormData();
+        formData.append("name", "Gloves");
+
+        await repository()
+            .request(getRequest({ method: "post", data: formData }))
+            .getData();
+
+        expect(calls()[0]?.init.body).toBe(formData);
+        expect(headersOf(calls()[0])["content-type"]).toBeUndefined();
+    });
+
+    it("sends a blob as it is, even with a JSON body type", async () => {
+        const calls = stubFetch(() => Promise.resolve(jsonResponse({})));
+        const blob = new Blob(["file"]);
+
+        await repository()
+            .request(getRequest({ method: "post", data: blob, requestBodyType: "json" }))
+            .getData();
+
+        expect(calls()[0]?.init.body).toBe(blob);
+        expect(headersOf(calls()[0])["content-type"]).toBeUndefined();
+    });
+
+    it("still sends a string as JSON with a JSON body type", async () => {
+        const calls = stubFetch(() => Promise.resolve(jsonResponse({})));
+
+        await repository()
+            .request(getRequest({ method: "post", data: "Gloves" }))
+            .getData();
+
+        expect(calls()[0]?.init.body).toEqual('"Gloves"');
+    });
+
     it("upper-cases the patch method and lets custom headers win", async () => {
         const calls = stubFetch(() => Promise.resolve(jsonResponse({})));
         const headers = { "Content-Type": "application/json-patch+json" };
@@ -57,6 +92,17 @@ describe("FetchHttpClientRepository requests", () => {
 
         expect(calls()[0]?.init.method).toEqual("PATCH");
         expect(headersOf(calls()[0])["content-type"]).toEqual("application/json-patch+json");
+    });
+
+    // OpenBoxes answers an expired session with 401 only to JSON requests; others get the HTML login page.
+    it("accepts JSON on every request, so an expired session gets a 401", async () => {
+        const calls = stubFetch(() => Promise.resolve(jsonResponse({})));
+
+        await repository()
+            .request(getRequest({ responseDataType: "raw" }))
+            .getData();
+
+        expect(headersOf(calls()[0])["accept"]).toEqual("application/json, text/plain");
     });
 
     it("includes browser credentials", async () => {

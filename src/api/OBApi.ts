@@ -19,6 +19,9 @@ export type OBApiOptions = Readonly<{
     httpClient?: HttpClientRepository;
 }>;
 
+/* `skipApiPrefix: true` makes the URL relative to `baseUrl`, for paths outside `apiPath`. */
+export type OBApiRequest = HttpRequest & Readonly<{ skipApiPrefix?: boolean }>;
+
 const DEFAULT_API_PATH = "openboxes/api";
 
 const PATCH_HEADERS = { "Content-Type": "application/json-patch+json" };
@@ -48,8 +51,10 @@ export class OBApi {
         return this.session.login(locationId);
     }
 
-    request<Data>(options: HttpRequest): CancelableResponse<Data> {
-        return this.session.send({ ...options, url: joinPath(this.apiPath, options.url) });
+    request<Data>(options: OBApiRequest): CancelableResponse<Data> {
+        const { skipApiPrefix, ...request } = options;
+        const url = skipApiPrefix ? request.url : joinPath(this.apiPath, request.url);
+        return this.session.send({ ...request, url });
     }
 
     get<Data>(url: string, params?: Params): CancelableResponse<Data> {
@@ -60,7 +65,7 @@ export class OBApi {
         url: string,
         params?: Params,
         data?: object,
-        request?: Partial<HttpRequest>
+        request?: Partial<OBApiRequest>
     ): CancelableResponse<Data> {
         return this.request<Data>({ method: "post", url, params, data, ...request });
     }

@@ -6,6 +6,7 @@ import {
     HttpClientResponse,
     HttpError,
     HttpRequest,
+    isJsonBody,
 } from "../repositories/HttpClientRepository";
 import { appendQueryString, joinPath } from "../utils/connection";
 import { Cookies, mergeSetCookies, toCookieHeader } from "../utils/cookies";
@@ -62,7 +63,7 @@ export class FetchHttpClientRepository implements HttpClientRepository {
             credentials: "include",
             headers: {
                 Accept: "application/json, text/plain",
-                ...(data !== undefined && requestBodyType === "json"
+                ...(isJsonBody(requestBodyType, data)
                     ? { "Content-Type": "application/json;charset=UTF-8" }
                     : {}),
                 ...(cookieHeader ? { Cookie: cookieHeader } : {}),
