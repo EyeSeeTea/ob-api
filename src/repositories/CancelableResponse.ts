@@ -1,4 +1,5 @@
 import { HttpClientResponse } from "./HttpClientRepository";
+import { Maybe } from "../utils/ts-utils";
 
 export type Canceler = (message?: string) => void;
 
@@ -33,7 +34,7 @@ export class CancelableResponse<Data> {
     ): CancelableResponse<MappedData> {
         const { cancel, response } = this;
         // Set once the first response arrives, so cancel() can also stop the second request.
-        let cancelSecond: Canceler | undefined;
+        let cancelSecond: Maybe<Canceler>;
 
         const mappedResponse = () =>
             response().then(response_ => {
@@ -61,7 +62,7 @@ export function isCancel(error: unknown): boolean {
 }
 
 /* An AbortError that keeps the cancel message; without a message, the default abort reason is used. */
-export function toAbortReason(message?: string): DOMException | undefined {
+export function toAbortReason(message?: string): Maybe<DOMException> {
     return message === undefined ? undefined : new DOMException(message, "AbortError");
 }
 

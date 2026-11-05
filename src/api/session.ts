@@ -6,6 +6,7 @@ import {
     HttpError,
     HttpRequest,
 } from "../repositories/HttpClientRepository";
+import { Maybe } from "../utils/ts-utils";
 
 export type Session = Readonly<{
     send<Data>(request: HttpRequest): CancelableResponse<Data>;
@@ -27,7 +28,7 @@ export type SessionOptions = Readonly<{
 export function createSession(options: SessionOptions): Session {
     const { httpClient, loginUrl, auth } = options;
     let locationId = options.locationId;
-    let loginPromise: Promise<void> | undefined;
+    let loginPromise: Maybe<Promise<void>>;
 
     function startLogin(loginLocationId = locationId): Promise<void> {
         const request: HttpRequest = {

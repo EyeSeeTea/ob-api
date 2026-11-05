@@ -1,4 +1,5 @@
 import { CancelableResponse } from "./CancelableResponse";
+import { Maybe } from "../utils/ts-utils";
 
 export interface HttpClientRepository {
     request<Data>(options: HttpRequest): CancelableResponse<Data>;
@@ -55,10 +56,7 @@ export class HttpError extends Error implements HttpErrorOptions {
     }
 }
 
-export function getBody(
-    dataType: HttpRequest["requestBodyType"],
-    data: unknown
-): BodyInit | undefined {
+export function getBody(dataType: HttpRequest["requestBodyType"], data: unknown): Maybe<BodyInit> {
     if (data === undefined) return undefined;
     if (isJsonBody(dataType, data)) return JSON.stringify(data);
     if (isPassThroughBody(data) || typeof data === "string") return data;

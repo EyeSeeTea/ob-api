@@ -47,7 +47,7 @@ src/
   api/            The public client (OBApi) and the session (login, retry on 401)
   repositories/   Interfaces and types: HttpClientRepository, HttpError, CancelableResponse
   data/           Implementations: FetchHttpClientRepository (keeps the session cookie in Node)
-  utils/          Shared utilities: URL and query string building, Set-Cookie parsing
+  utils/          Shared utilities: URL and query string building, Set-Cookie parsing, Maybe
   __tests__/      Test helpers shared by the specs (fetch stub); not built
   index.ts        Public exports
 ```

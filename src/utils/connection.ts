@@ -1,6 +1,7 @@
 import { ParamValue, Params } from "../repositories/HttpClientRepository";
+import { isDefined, Maybe } from "./ts-utils";
 
-export function joinPath(...parts: ReadonlyArray<string | undefined>): string {
+export function joinPath(...parts: ReadonlyArray<Maybe<string>>): string {
     const presentParts = parts.filter((part): part is string => Boolean(part));
     const lastIndex = presentParts.length - 1;
 
@@ -37,8 +38,4 @@ function isParamArray(
     value: ParamValue | ReadonlyArray<ParamValue>
 ): value is ReadonlyArray<ParamValue> {
     return Array.isArray(value);
-}
-
-function isDefined<T>(value: T | undefined): value is T {
-    return value !== undefined;
 }

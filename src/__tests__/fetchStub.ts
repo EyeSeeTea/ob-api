@@ -1,5 +1,6 @@
 import { Mock, vi } from "vitest";
 import { HttpError } from "../repositories/HttpClientRepository";
+import { Maybe } from "../utils/ts-utils";
 
 export const BASE_URL = "https://ob.example.org";
 export const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -37,11 +38,11 @@ export function hangUntilAborted({ init }: FetchCall): Promise<Response> {
     });
 }
 
-export function headersOf(call: FetchCall | undefined): Record<string, string> {
+export function headersOf(call: Maybe<FetchCall>): Record<string, string> {
     return Object.fromEntries(new Headers(call?.init.headers));
 }
 
-export function bodyOf(call: FetchCall | undefined): unknown {
+export function bodyOf(call: Maybe<FetchCall>): unknown {
     return typeof call?.init.body === "string" ? JSON.parse(call.init.body) : undefined;
 }
 
