@@ -7,7 +7,20 @@ import {
     Params,
 } from "../repositories/HttpClientRepository";
 import { joinPath } from "../utils/connection";
+import {
+    createInventories,
+    createTransactions,
+    createTransactionTypes,
+    Inventories,
+    Transactions,
+    TransactionTypes,
+} from "./inventoryTransactions";
+import { createLocations, Locations } from "./locations";
+import { createPartialReceipts, PartialReceipts } from "./partialReceipts";
+import { createPeople, People } from "./people";
+import { createProducts, Products } from "./products";
 import { createSession, Session } from "./session";
+import { createStockMovements, StockMovements } from "./stockMovements";
 
 export type OBApiOptions = Readonly<{
     baseUrl: string;
@@ -29,6 +42,14 @@ const PATCH_HEADERS = { "Content-Type": "application/json-patch+json" };
 export class OBApi {
     readonly baseUrl: string;
     readonly apiPath: string;
+    readonly products: Products;
+    readonly locations: Locations;
+    readonly stockMovements: StockMovements;
+    readonly partialReceipts: PartialReceipts;
+    readonly transactionTypes: TransactionTypes;
+    readonly inventories: Inventories;
+    readonly transactions: Transactions;
+    readonly people: People;
     private readonly session: Session;
 
     constructor(options: OBApiOptions) {
@@ -43,12 +64,26 @@ export class OBApi {
             auth,
             locationId,
             loginUrl: joinPath(apiPath, "login"),
+            chooseLocationUrl: joinPath(apiPath, "chooseLocation"),
         });
+        this.products = createProducts(this);
+        this.locations = createLocations(this);
+        this.stockMovements = createStockMovements(this);
+        this.partialReceipts = createPartialReceipts(this);
+        this.transactionTypes = createTransactionTypes(this);
+        this.inventories = createInventories(this);
+        this.transactions = createTransactions(this);
+        this.people = createPeople(this);
     }
 
     /* Logs in again, even with a valid session. A given location is also used by later logins. */
     login(locationId?: string): Promise<void> {
         return this.session.login(locationId);
+    }
+
+    /* Keeps the current session; `login(locationId)` logs in again instead. */
+    chooseLocation(locationId: string): CancelableResponse<void> {
+        return this.session.chooseLocation(locationId);
     }
 
     request<Data>(options: OBApiRequest): CancelableResponse<Data> {

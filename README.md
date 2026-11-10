@@ -31,6 +31,81 @@ Each method returns a `CancelableResponse`. Call `getData()` for the body, `resp
 
 The client returns the body as OpenBoxes sends it. It does not remove the `{ data }` wrapper.
 
+### Typed endpoints
+
+The client has typed methods for common OpenBoxes calls. They build the URL, the parameters and the body, check the response, and return plain types:
+
+```ts
+const { objects: products, total } = await api.products.list({ max: 50, offset: 0 }).getData();
+
+const { objects: inbound } = await api.stockMovements
+    .list({ direction: "INBOUND", destination: locationId, receiptStatusCodes: ["SHIPPED"] })
+    .getData();
+
+const receipt = await api.partialReceipts.get(shipmentId).getData();
+
+const pending = await api.partialReceipts
+    .savePending(shipmentId, {
+        dateDelivered: new Date(),
+        items: receipt.items.map(item => ({
+            shipmentItemId: item.shipmentItemId,
+            quantityReceiving: item.quantityRemaining,
+            cancelRemaining: false,
+        })),
+    })
+    .getData();
+// Then `complete(shipmentId, …)` with `receiptId: pending.receiptId` and the `receiptItemId` of each item.
+```
+
+#### Read
+
+| Method                                                                                           | Request                              | Result                                         |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------ | ---------------------------------------------- |
+| `products.list({ max?, offset?, q? })`                                                           | `GET /products`                      | `{ objects: OBProduct[], total }`              |
+| `products.availableItems({ locationId, productIds })`                                            | `GET /products/availableItems`       | `{ objects: OBAvailableItem[] }`               |
+| `locations.list({ locationTypeCode? })`                                                          | `GET /locations`                     | `{ objects: OBLocation[] }`                    |
+| `stockMovements.list({ direction?, origin?, destination?, receiptStatusCodes?, max?, offset? })` | `GET /stockMovements`                | `{ objects: OBStockMovementSummary[], total }` |
+| `stockMovements.get(id)`                                                                         | `GET /stockMovements/{id}`           | `OBStockMovement`                              |
+| `stockMovements.downloadDocument(uri)`                                                           | `GET <uri>`                          | `Blob`                                         |
+| `partialReceipts.get(shipmentId)`                                                                | `GET /partialReceiving/{shipmentId}` | `OBPartialReceipt`                             |
+| `transactionTypes.list()`                                                                        | `GET /generic/TransactionType`       | `{ objects: OBTransactionType[] }`             |
+| `inventories.list()`                                                                             | `GET /generic/inventory`             | `{ objects: OBInventory[] }`                   |
+| `people.search({ email })`                                                                       | `POST /generic/person/search`        | `{ objects: OBPerson[] }`                      |
+
+#### Write
+
+| Method                                              | Request                                                         | Result             |
+| --------------------------------------------------- | --------------------------------------------------------------- | ------------------ |
+| `stockMovements.uploadDocument(id, file, fileName)` | `POST /openboxes/stockMovement/uploadDocument/{id}` (form data) | nothing            |
+| `partialReceipts.savePending(shipmentId, receipt)`  | `POST /partialReceiving/{shipmentId}` (`PENDING`)               | `OBPartialReceipt` |
+| `partialReceipts.complete(shipmentId, receipt)`     | `POST /partialReceiving/{shipmentId}` (`COMPLETED`)             | nothing            |
+| `transactions.create(transaction)`                  | `POST /generic/transaction`                                     | `{ id }`           |
+| `chooseLocation(locationId)`                        | `GET /chooseLocation/{locationId}`                              | nothing            |
+
+Results:
+
+- Absent values are `undefined` (OpenBoxes sends `null`). Dotted keys are camelCase: `"inventoryItem.id"` is `inventoryItemId`, and `"product.id"` is `productId`.
+- `total` is the number of matches on the server. `objects` is one page.
+- Dates are the strings OpenBoxes sends: `MM/dd/yyyy`, `MM/dd/yyyy HH:mm Z` or ISO 8601, without conversion.
+- A partial receipt has `items`: the shipment items of all its containers, in order, each with its `containerId`.
+- `stockMovements.list` returns movements without `documents`: OpenBoxes does not send them in the list. Use `stockMovements.get(id)` to read them.
+- Stock movement `statusCode` is a string, because OpenBoxes sends values outside its own list (for example `ISSUED`).
+
+Parameters and inputs:
+
+- `q` is a search: OpenBoxes matches it against the name, the code and other fields. Filter the result for an exact code.
+- `availableItems` sends at most 50 product ids in one request. For more products, it sends one request after another and joins the items in order.
+- `locations.list` returns the locations the user can see. OpenBoxes does not page this list.
+- `stockMovements.list` needs `direction`, or an `origin` different from the `destination`. Without them, OpenBoxes answers `400`. `receiptStatusCodes` accepts only shipment statuses (`OB_SHIPMENT_STATUSES`); OpenBoxes answers `500` for other values.
+- Inputs use ids, not `{ id }` objects, and `Date` values. The client builds the OpenBoxes body. `savePending` and `complete` send `dateDelivered` in UTC as `MM/dd/yyyy HH:mm Z`, the only format OpenBoxes accepts. They send `null` for absent ids, lots and expiry dates, so OpenBoxes clears them.
+- `uploadDocument` posts outside `apiPath`, to the OpenBoxes web app path: `apiPath` without its last `api` segment (`openboxes/api` gives `openboxes`).
+- `downloadDocument` accepts only a URI on the OpenBoxes server (it starts with `baseUrl`), so the session cookie goes nowhere else. For another URI, it rejects without a request.
+- `chooseLocation` changes the location of the current session, and later automatic logins use it. `login(locationId)` does the same with a new login.
+
+The client checks each response. When a field it returns is missing or has a wrong type, the request rejects with an `HttpError` that names the request and the field, and keeps the response. Fields that the client does not return are ignored, so new fields in a newer OpenBoxes do not cause an error. A new value in a closed status set (the `OB_*` arrays) fails the check.
+
+For other endpoints, use the generic methods below.
+
 ### URLs
 
 Request URLs are relative to `<baseUrl>/<apiPath>`. `apiPath` is `openboxes/api` by default. `api.get("/products")` requests `https://ob.example.org/openboxes/api/products`. Set `apiPath` when OpenBoxes uses a different path.

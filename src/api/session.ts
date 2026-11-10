@@ -11,11 +11,13 @@ import { Maybe } from "../utils/ts-utils";
 export type Session = Readonly<{
     send<Data>(request: HttpRequest): CancelableResponse<Data>;
     login(locationId?: string): Promise<void>;
+    chooseLocation(locationId: string): CancelableResponse<void>;
 }>;
 
 export type SessionOptions = Readonly<{
     httpClient: HttpClientRepository;
     loginUrl: string;
+    chooseLocationUrl: string;
     auth: Credentials;
     locationId?: string;
 }>;
@@ -26,7 +28,7 @@ export type SessionOptions = Readonly<{
  * Requests that need a login share the same promise, so concurrent requests cause one login.
  */
 export function createSession(options: SessionOptions): Session {
-    const { httpClient, loginUrl, auth } = options;
+    const { httpClient, loginUrl, chooseLocationUrl, auth } = options;
     let locationId = options.locationId;
     let loginPromise: Maybe<Promise<void>>;
 
@@ -107,7 +109,15 @@ export function createSession(options: SessionOptions): Session {
         return startLogin(newLocationId);
     }
 
-    return { send, login };
+    /* Changes the location of the current server session; later logins then use it too. */
+    function chooseLocation(newLocationId: string): CancelableResponse<void> {
+        const url = `${chooseLocationUrl}/${encodeURIComponent(newLocationId)}`;
+        return send<unknown>({ method: "get", url, responseDataType: "raw" }).map(() => {
+            locationId = newLocationId;
+        });
+    }
+
+    return { send, login, chooseLocation };
 }
 
 function isUnauthorized(error: unknown): boolean {

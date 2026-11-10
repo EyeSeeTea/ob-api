@@ -4,7 +4,7 @@ This file is the project OVERVIEW and CONVENTIONS, written for the people who wo
 
 ## What it is
 
-`ob-api` (`@eyeseetea/ob-api`) is a TypeScript library to call the [OpenBoxes](https://openboxes.com/) REST API. It follows the shape of [d2-api](https://github.com/EyeSeeTea/d2-api): the first version is a generic client (`get`, `post`, `put`, `patch`, `delete` on any endpoint), like `D2ApiGeneric`. Typed endpoints (for example `api.products.get(...)`) come later, on top of the generic client.
+`ob-api` (`@eyeseetea/ob-api`) is a TypeScript library to call the [OpenBoxes](https://openboxes.com/) REST API. It follows the shape of [d2-api](https://github.com/EyeSeeTea/d2-api): the first version is a generic client (`get`, `post`, `put`, `patch`, `delete` on any endpoint), like `D2ApiGeneric`. Typed endpoints (for example `api.products.list(...)`) are on top of the generic client.
 
 ## Tech stack
 
@@ -44,10 +44,11 @@ The layout is copied from d2-api so the two libraries stay alike:
 
 ```
 src/
-  api/            The public client (OBApi) and the session (login, retry on 401)
+  api/            The public client (OBApi), the session (login, retry on 401) and the typed
+                  endpoints (one file for each resource) with their response checks (purify-ts)
   repositories/   Interfaces and types: HttpClientRepository, HttpError, CancelableResponse
   data/           Implementations: FetchHttpClientRepository (keeps the session cookie in Node)
-  utils/          Shared utilities: URL and query string building, Set-Cookie parsing, Maybe
+  utils/          Shared utilities: URL and query string building, Set-Cookie parsing, chunk, Maybe
   __tests__/      Test helpers shared by the specs (fetch stub); not built
   index.ts        Public exports
 ```

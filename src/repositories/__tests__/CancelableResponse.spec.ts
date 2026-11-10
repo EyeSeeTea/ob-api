@@ -38,6 +38,17 @@ describe("CancelableResponse", () => {
         expect(cancelFirst).toHaveBeenCalledTimes(1);
         expect(cancelSecond).toHaveBeenCalledTimes(1);
     });
+
+    it("cancels the second response of a flatMap when the cancel comes before it starts", async () => {
+        const cancelSecond = vi.fn();
+        const chained = buildResponse(1).flatMap(() => buildResponse(2, cancelSecond));
+
+        const data = chained.getData();
+        chained.cancel("stop");
+        await data;
+
+        expect(cancelSecond).toHaveBeenCalledWith("stop");
+    });
 });
 
 describe("isCancel", () => {
