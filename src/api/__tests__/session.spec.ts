@@ -166,6 +166,46 @@ describe("Explicit login", () => {
     });
 });
 
+describe("Choose a location", () => {
+    const CHOOSE_URL = `${BASE_URL}/openboxes/api/chooseLocation`;
+
+    it("changes the location of the session and keeps it for later logins", async () => {
+        const calls = stubServer((call, previousCalls) => {
+            if (call.url.startsWith(CHOOSE_URL)) return new Response("");
+            const productCalls = previousCalls.filter(previous => previous.url === PRODUCTS_URL);
+            return productCalls.length === 0 ? UNAUTHORIZED() : jsonResponse({});
+        });
+        const api = newApi("L1");
+
+        await api.chooseLocation("L2").getData();
+        await api.get("/products").getData();
+
+        expect(urlsOf(calls())).toEqual([
+            LOGIN_URL,
+            `${CHOOSE_URL}/L2`,
+            PRODUCTS_URL,
+            LOGIN_URL,
+            PRODUCTS_URL,
+        ]);
+        expect(loginsIn(calls()).map(loginLocationOf)).toEqual(["L1", "L2"]);
+    });
+
+    it("keeps the previous location when the choice fails", async () => {
+        const calls = stubServer(call =>
+            call.url.startsWith(CHOOSE_URL)
+                ? jsonResponse({ errorMessage: "Not allowed" }, { status: 403 })
+                : jsonResponse({})
+        );
+        const api = newApi("L1");
+
+        const error = await httpErrorOf(api.chooseLocation("L2").getData());
+        await api.login();
+
+        expect(error.response?.status).toEqual(403);
+        expect(loginsIn(calls()).map(loginLocationOf)).toEqual(["L1", "L1"]);
+    });
+});
+
 describe("Login failure", () => {
     it("rejects the waiting request and does not retry", async () => {
         const calls = stubFetch(call =>
