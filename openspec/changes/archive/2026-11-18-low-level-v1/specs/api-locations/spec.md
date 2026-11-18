@@ -4,8 +4,6 @@
 
 `api.locations.list(params)` SHALL request `GET <apiPath>/locations` with the optional parameter `locationTypeCode`, one of `OB_LOCATION_TYPE_CODES` (the OpenBoxes `LocationTypeCode` enum). It SHALL return `{ objects }`, the locations that the user can see. OpenBoxes does not page this list.
 
-Each location SHALL have `id`, `name`, `active` and `locationType` (`id`, `name`, `locationTypeCode`), and MAY have `locationNumber` and `parentLocation` (`id`, `name`). The client SHALL reject a response with a `locationTypeCode` that is not in `OB_LOCATION_TYPE_CODES`.
-
 #### Scenario: All locations
 
 - **WHEN** the caller runs `api.locations.list()`
@@ -21,6 +19,12 @@ Each location SHALL have `id`, `name`, `active` and `locationType` (`id`, `name`
 
 - **WHEN** the caller writes `api.locations.list({ locationTypeCode: "NOPE" })`
 - **THEN** the call does not compile, because OpenBoxes answers `500` for this request
+
+## ADDED Requirements
+
+### Requirement: Location fields
+
+Each location SHALL have `id`, `name`, `active` and `locationType` (`id`, `name`, `locationTypeCode`), and MAY have `locationNumber` and `parentLocation` (`id`, `name`). The client SHALL reject a response with a `locationTypeCode` that is not in `OB_LOCATION_TYPE_CODES`.
 
 #### Scenario: Location without a number
 

@@ -76,18 +76,18 @@ api.request({ method: "get", path: "/stockMovments" }); // TypeScript error: no 
 
 #### Read
 
-| Method                                                                                          | Request                              | Result                                         |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------- |
-| `products.list({ max?, offset?, q? })`                                                          | `GET /products`                      | `{ objects: OBProduct[], total }`              |
-| `products.availableItems({ location: { id }, product: { id: [...] } })`                         | `GET /products/availableItems`       | `{ objects: OBAvailableItem[] }`               |
-| `locations.list({ locationTypeCode? })`                                                         | `GET /locations`                     | `{ objects: OBLocation[] }`                    |
+| Method                                                                                             | Request                              | Result                                         |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------- |
+| `products.list({ max?, offset?, q? })`                                                             | `GET /products`                      | `{ objects: OBProduct[], total }`              |
+| `products.availableItems({ location: { id }, product: { id: [...] } })`                            | `GET /products/availableItems`       | `{ objects: OBAvailableItem[] }`               |
+| `locations.list({ locationTypeCode? })`                                                            | `GET /locations`                     | `{ objects: OBLocation[] }`                    |
 | `stockMovements.list({ direction, origin and/or destination, receiptStatusCode?, max?, offset? })` | `GET /stockMovements`                | `{ objects: OBStockMovementSummary[], total }` |
-| `stockMovements.get(id)`                                                                        | `GET /stockMovements/{id}`           | `OBStockMovement`                              |
-| `stockMovements.downloadDocument(uri)`                                                          | `GET <uri>`                          | `Blob`                                         |
-| `partialReceipts.get(shipmentId)`                                                               | `GET /partialReceiving/{shipmentId}` | `OBPartialReceipt`                             |
-| `transactionTypes.list()`                                                                       | `GET /generic/TransactionType`       | `{ objects: OBTransactionType[] }`             |
-| `inventories.list()`                                                                            | `GET /generic/inventory`             | `{ objects: OBInventory[] }`                   |
-| `people.search({ searchAttributes })`                                                           | `POST /generic/person/search`        | `{ objects: OBPerson[] }`                      |
+| `stockMovements.get(id)`                                                                           | `GET /stockMovements/{id}`           | `OBStockMovement`                              |
+| `stockMovements.downloadDocument(uri)`                                                             | `GET <uri>`                          | `Blob`                                         |
+| `partialReceipts.get(shipmentId)`                                                                  | `GET /partialReceiving/{shipmentId}` | `OBPartialReceipt`                             |
+| `transactionTypes.list()`                                                                          | `GET /generic/TransactionType`       | `{ objects: OBTransactionType[] }`             |
+| `inventories.list()`                                                                               | `GET /generic/inventory`             | `{ objects: OBInventory[] }`                   |
+| `people.search({ searchAttributes })`                                                              | `POST /generic/person/search`        | `{ objects: OBPerson[] }`                      |
 
 #### Write
 
