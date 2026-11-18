@@ -18,7 +18,7 @@ const transactionTypeBody = (overrides: Record<string, unknown> = {}) => ({
 });
 
 describe("transactionTypes.list", () => {
-    it("requests the generic TransactionType list and takes the code name", async () => {
+    it("requests the generic TransactionType list and keeps the code name nested", async () => {
         const calls = stubServer(() => jsonResponse({ data: [transactionTypeBody()] }));
 
         const result = await api().transactionTypes.list().getData();
@@ -27,7 +27,7 @@ describe("transactionTypes.list", () => {
             `${API_URL}/generic/TransactionType`,
         ]);
         expect(result).toEqual({
-            objects: [{ id: "tt-1", name: "Consumption", transactionCode: "DEBIT" }],
+            objects: [{ id: "tt-1", name: "Consumption", transactionCode: { name: "DEBIT" } }],
         });
     });
 
@@ -43,7 +43,7 @@ describe("transactionTypes.list", () => {
 });
 
 describe("inventories.list", () => {
-    it("requests the generic inventory list and takes the warehouse id", async () => {
+    it("requests the generic inventory list and keeps the warehouse", async () => {
         const calls = stubServer(() =>
             jsonResponse({
                 data: [
@@ -66,8 +66,8 @@ describe("inventories.list", () => {
         ]);
         expect(result).toEqual({
             objects: [
-                { id: "inv-1", warehouseId: "loc-1" },
-                { id: "inv-2", warehouseId: undefined },
+                { id: "inv-1", warehouse: { id: "loc-1" } },
+                { id: "inv-2", warehouse: undefined },
             ],
         });
     });
@@ -81,12 +81,14 @@ describe("transactions.create", () => {
 
         const result = await api()
             .transactions.create({
-                transactionTypeId: "tt-1",
-                inventoryId: "inv-1",
+                transactionType: { id: "tt-1" },
+                inventory: { id: "inv-1" },
                 transactionDate: new Date("2026-06-24T06:40:00Z"),
                 comment: "DHIS2 consumption",
                 confirmed: true,
-                entries: [{ inventoryItemId: "ii-1", productId: "p1", quantity: 3 }],
+                transactionEntries: [
+                    { inventoryItem: { id: "ii-1" }, product: { id: "p1" }, quantity: 3 },
+                ],
             })
             .getData();
 
@@ -111,16 +113,16 @@ describe("transactions.create", () => {
 
         await api()
             .transactions.create({
-                transactionTypeId: "tt-1",
-                inventoryId: "inv-1",
+                transactionType: { id: "tt-1" },
+                inventory: { id: "inv-1" },
                 transactionDate: new Date("2026-06-24T06:40:00Z"),
                 transactionNumber: "T1",
-                entries: [
+                transactionEntries: [
                     {
-                        inventoryItemId: "ii-1",
-                        productId: "p1",
+                        inventoryItem: { id: "ii-1" },
+                        product: { id: "p1" },
                         quantity: 3,
-                        binLocationId: "bin-1",
+                        binLocation: { id: "bin-1" },
                     },
                 ],
             })

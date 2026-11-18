@@ -37,6 +37,25 @@ Each item SHALL have `shipmentItemId`, `product` (`id`, `productCode`, `name`), 
 - **WHEN** the caller saves a pending receipt and OpenBoxes answers with the updated receipt
 - **THEN** the client sends a `POST` to `…/openboxes/api/partialReceiving/sh-1` and returns the updated receipt, with its `receiptItemId` values
 
+#### Scenario: Pending save answered without a receipt
+
+- **WHEN** OpenBoxes answers a `PENDING` save with `{ data: {} }`
+- **THEN** the request rejects with an HTTP error that keeps the response
+
+### Requirement: Complete a partial receipt
+
+`api.partialReceipts.complete(shipmentId, receipt)` SHALL send the same request with `receiptStatus` `COMPLETED`, and resolve with no value. OpenBoxes answers a completed receipt with `{ data: {} }`, not with the receipt. Any other answer that is not a receipt SHALL reject the request with an HTTP error.
+
+#### Scenario: Completed receipt
+
+- **WHEN** the caller completes a receipt and OpenBoxes answers `{ data: {} }`
+- **THEN** the request resolves with no value
+
+#### Scenario: Unexpected completion answer
+
+- **WHEN** OpenBoxes answers a completion with `{ data: { receiptStatus: "LOST" } }`
+- **THEN** the request rejects with an HTTP error that names `POST /partialReceiving/sh-1`
+
 ### Requirement: Partial receipt body
 
 The client SHALL send the containers and items of the input, in their order. `dateDelivered` SHALL be in UTC as `MM/dd/yyyy HH:mm Z`, the only format OpenBoxes accepts. An absent `receiptId`, `receiptItemId`, `lotNumber` or `expirationDate` SHALL be `null`, so OpenBoxes clears it. `product`, `recipient` and `binLocation` SHALL be sent only when they are given.

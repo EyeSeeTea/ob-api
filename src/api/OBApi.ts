@@ -4,6 +4,7 @@ import {
     Credentials,
     HttpClientRepository,
     HttpRequest,
+    Method,
     Params,
 } from "../repositories/HttpClientRepository";
 import { joinPath } from "../utils/connection";
@@ -15,6 +16,12 @@ import {
     Transactions,
     TransactionTypes,
 } from "./inventoryTransactions";
+import {
+    OBEndpointPath,
+    OBEndpointRequest,
+    OBEndpointResponse,
+    requestEndpoint,
+} from "./endpoints";
 import { createLocations, Locations } from "./locations";
 import { createPartialReceipts, PartialReceipts } from "./partialReceipts";
 import { createPeople, People } from "./people";
@@ -86,14 +93,22 @@ export class OBApi {
         return this.session.chooseLocation(locationId);
     }
 
-    request<Data>(options: OBApiRequest): CancelableResponse<Data> {
+    /* A typed OpenBoxes endpoint: `method` and `path` choose the params, the body and the checked response. */
+    request<M extends Method, Path extends OBEndpointPath<M>>(
+        options: OBEndpointRequest<M, Path>
+    ): CancelableResponse<OBEndpointResponse<`${M} ${Path}`>> {
+        return requestEndpoint(this, options);
+    }
+
+    /* Any request, without a response check: for endpoints that ob-api does not type. */
+    requestUntyped<Data>(options: OBApiRequest): CancelableResponse<Data> {
         const { skipApiPrefix, ...request } = options;
         const url = skipApiPrefix ? request.url : joinPath(this.apiPath, request.url);
         return this.session.send({ ...request, url });
     }
 
     get<Data>(url: string, params?: Params): CancelableResponse<Data> {
-        return this.request<Data>({ method: "get", url, params });
+        return this.requestUntyped<Data>({ method: "get", url, params });
     }
 
     post<Data>(
@@ -102,18 +117,24 @@ export class OBApi {
         data?: object,
         request?: Partial<OBApiRequest>
     ): CancelableResponse<Data> {
-        return this.request<Data>({ method: "post", url, params, data, ...request });
+        return this.requestUntyped<Data>({ method: "post", url, params, data, ...request });
     }
 
     put<Data>(url: string, params?: Params, data?: object): CancelableResponse<Data> {
-        return this.request<Data>({ method: "put", url, params, data });
+        return this.requestUntyped<Data>({ method: "put", url, params, data });
     }
 
     patch<Data>(url: string, params?: Params, data?: object): CancelableResponse<Data> {
-        return this.request<Data>({ method: "patch", url, params, data, headers: PATCH_HEADERS });
+        return this.requestUntyped<Data>({
+            method: "patch",
+            url,
+            params,
+            data,
+            headers: PATCH_HEADERS,
+        });
     }
 
     delete<Data>(url: string, params?: Params): CancelableResponse<Data> {
-        return this.request<Data>({ method: "delete", url, params });
+        return this.requestUntyped<Data>({ method: "delete", url, params });
     }
 }

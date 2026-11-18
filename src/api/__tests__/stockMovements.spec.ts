@@ -16,7 +16,7 @@ describe("stockMovements.list", () => {
             .stockMovements.list({
                 direction: "INBOUND",
                 destination: "1",
-                receiptStatusCodes: ["SHIPPED", "PENDING"],
+                receiptStatusCode: ["SHIPPED", "PENDING"],
                 max: 20,
                 offset: 0,
             })
@@ -39,7 +39,7 @@ describe("stockMovements.list", () => {
 
         expect(result.total).toEqual(35);
         expect(result.objects.map(movement => movement.id)).toEqual(["sm-1", "sm-2"]);
-        expect(result.objects[0]?.shipmentId).toEqual("sh-1");
+        expect(result.objects[0]?.associations).toEqual({ shipment: { id: "sh-1" } });
     });
 
     it("returns no documents, because OpenBoxes sends none in the list", async () => {
@@ -47,7 +47,7 @@ describe("stockMovements.list", () => {
 
         const result = await api().stockMovements.list().getData();
 
-        expect(result.objects[0]).not.toHaveProperty("documents");
+        expect(result.objects[0]?.associations).not.toHaveProperty("documents");
     });
 });
 
@@ -67,7 +67,6 @@ describe("stockMovements.get", () => {
             description: "Vaccines",
             statusCode: "DISPATCHED",
             shipmentStatus: "SHIPPED",
-            shipmentId: "sh-1",
             origin: { id: "loc-1", name: "Central depot", locationNumber: undefined },
             destination: { id: "loc-2", name: "District depot", locationNumber: undefined },
             shipmentType: { id: "1", name: "Land" },
@@ -77,14 +76,17 @@ describe("stockMovements.get", () => {
             dateShipped: "06/24/2026 06:39 Z",
             expectedDeliveryDate: "06/24/2026 00:00 Z",
             lastUpdated: "2026-06-24T06:39:37Z",
-            documents: [
-                {
-                    name: "Export Stock Movement Items",
-                    uri: "https://ob.example.org/openboxes/stockMovement/exportCsv/sm-1",
-                    documentType: "EXPORT",
-                    contentType: "text/csv",
-                },
-            ],
+            associations: {
+                shipment: { id: "sh-1" },
+                documents: [
+                    {
+                        name: "Export Stock Movement Items",
+                        uri: "https://ob.example.org/openboxes/stockMovement/exportCsv/sm-1",
+                        documentType: "EXPORT",
+                        contentType: "text/csv",
+                    },
+                ],
+            },
         });
     });
 
@@ -104,15 +106,14 @@ describe("stockMovements.get", () => {
         expect(error.message).toMatch(/unexpected response.*shipmentStatus/);
     });
 
-    it("gives no documents and no shipment id when the associations are missing", async () => {
+    it("gives empty documents and no shipment when the associations have none", async () => {
         stubServer(() =>
             jsonResponse({ data: stockMovementBody({ associations: { documents: null } }) })
         );
 
         const movement = await api().stockMovements.get("sm-1").getData();
 
-        expect(movement.documents).toEqual([]);
-        expect(movement.shipmentId).toBeUndefined();
+        expect(movement.associations).toEqual({ shipment: undefined, documents: [] });
     });
 });
 

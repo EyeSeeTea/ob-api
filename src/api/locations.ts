@@ -1,7 +1,8 @@
 import { array, boolean, Codec, GetType, string } from "purify-ts";
 import { CancelableResponse } from "../repositories/CancelableResponse";
 import { Maybe } from "../utils/ts-utils";
-import { getChecked, nullish, RequestApi } from "./responseCheck";
+import type { EndpointApi } from "./endpoints";
+import { nullish } from "./responseCheck";
 import { ListResult } from "./results";
 
 export type OBLocationType = Readonly<{
@@ -36,13 +37,13 @@ const locationCodec = Codec.interface({
     parentLocation: nullish(Codec.interface({ id: string, name: string })),
 });
 
-const locationListCodec = Codec.interface({ data: array(locationCodec) });
+export const locationListCodec = Codec.interface({ data: array(locationCodec) });
 
-export function createLocations(api: RequestApi): Locations {
+export function createLocations(api: EndpointApi): Locations {
     function list(params: LocationListParams = {}): CancelableResponse<ListResult<OBLocation>> {
-        return getChecked(api, "/locations", params, locationListCodec).map(({ data }) => ({
-            objects: data.data.map(toLocation),
-        }));
+        return api
+            .request({ method: "get", path: "/locations", params })
+            .map(({ data }) => ({ objects: data.data.map(toLocation) }));
     }
 
     return { list };

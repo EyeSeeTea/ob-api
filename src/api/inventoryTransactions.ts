@@ -1,7 +1,9 @@
 import { array, Codec, exactly, GetType, string } from "purify-ts";
 import { CancelableResponse } from "../repositories/CancelableResponse";
 import { Maybe } from "../utils/ts-utils";
-import { getChecked, nullish, postChecked, RequestApi } from "./responseCheck";
+import type { EndpointApi } from "./endpoints";
+import { OBIdRef } from "./refs";
+import { nullish } from "./responseCheck";
 import { ListResult } from "./results";
 
 /* TransactionCode */
@@ -12,31 +14,34 @@ export type OBTransactionCode = (typeof OB_TRANSACTION_CODES)[number];
 export type OBTransactionType = Readonly<{
     id: string;
     name: string;
-    transactionCode: OBTransactionCode;
+    transactionCode: Readonly<{ name: OBTransactionCode }>;
 }>;
 
 export type OBInventory = Readonly<{
     id: string;
     /* The location that owns the inventory. */
-    warehouseId: Maybe<string>;
+    warehouse: Maybe<OBIdRef>;
 }>;
 
 export type TransactionEntryInput = Readonly<{
-    inventoryItemId: string;
-    productId: string;
+    inventoryItem: OBIdRef;
+    product: OBIdRef;
     quantity: number;
-    binLocationId?: string;
+    binLocation?: OBIdRef;
 }>;
 
 export type TransactionInput = Readonly<{
-    transactionTypeId: string;
-    inventoryId: string;
+    transactionType: OBIdRef;
+    inventory: OBIdRef;
     transactionDate: Date;
-    entries: ReadonlyArray<TransactionEntryInput>;
+    transactionEntries: ReadonlyArray<TransactionEntryInput>;
     transactionNumber?: string;
     comment?: string;
     confirmed?: boolean;
 }>;
+
+export type TransactionBody = Omit<TransactionInput, "transactionDate"> &
+    Readonly<{ transactionDate: string }>;
 
 export type TransactionTypes = Readonly<{
     list(): CancelableResponse<ListResult<OBTransactionType>>;
@@ -47,7 +52,7 @@ export type Inventories = Readonly<{
 }>;
 
 export type Transactions = Readonly<{
-    create(transaction: TransactionInput): CancelableResponse<Readonly<{ id: string }>>;
+    create(transaction: TransactionInput): CancelableResponse<OBIdRef>;
 }>;
 
 const transactionTypeCodec = Codec.interface({
@@ -61,65 +66,55 @@ const inventoryCodec = Codec.interface({
     warehouse: nullish(Codec.interface({ id: string })),
 });
 
-const transactionTypeListCodec = Codec.interface({ data: array(transactionTypeCodec) });
+export const transactionTypeListCodec = Codec.interface({ data: array(transactionTypeCodec) });
 
-const inventoryListCodec = Codec.interface({ data: array(inventoryCodec) });
+export const inventoryListCodec = Codec.interface({ data: array(inventoryCodec) });
 
-const createdCodec = Codec.interface({ data: Codec.interface({ id: string }) });
+export const createdCodec = Codec.interface({ data: Codec.interface({ id: string }) });
 
-export function createTransactionTypes(api: RequestApi): TransactionTypes {
+export function createTransactionTypes(api: EndpointApi): TransactionTypes {
     return {
         list: () =>
-            getChecked(api, "/generic/TransactionType", undefined, transactionTypeListCodec).map(
-                ({ data }) => ({ objects: data.data.map(toTransactionType) })
-            ),
+            api
+                .request({ method: "get", path: "/generic/TransactionType" })
+                .map(({ data }) => ({ objects: data.data.map(toTransactionType) })),
     };
 }
 
-export function createInventories(api: RequestApi): Inventories {
+export function createInventories(api: EndpointApi): Inventories {
     return {
         list: () =>
-            getChecked(api, "/generic/inventory", undefined, inventoryListCodec).map(
-                ({ data }) => ({
-                    objects: data.data.map(toInventory),
-                })
-            ),
+            api
+                .request({ method: "get", path: "/generic/inventory" })
+                .map(({ data }) => ({ objects: data.data.map(toInventory) })),
     };
 }
 
-export function createTransactions(api: RequestApi): Transactions {
+export function createTransactions(api: EndpointApi): Transactions {
     return {
         create: transaction =>
-            postChecked(
-                api,
-                "/generic/transaction",
-                toTransactionBody(transaction),
-                createdCodec
-            ).map(({ data }) => ({ id: data.data.id })),
+            api
+                .request({
+                    method: "post",
+                    path: "/generic/transaction",
+                    data: {
+                        ...transaction,
+                        transactionDate: transaction.transactionDate.toISOString(),
+                    },
+                })
+                .map(({ data }) => ({ id: data.data.id })),
     };
 }
 
 function toTransactionType(type: GetType<typeof transactionTypeCodec>): OBTransactionType {
-    return { id: type.id, name: type.name, transactionCode: type.transactionCode.name };
+    return {
+        id: type.id,
+        name: type.name,
+        transactionCode: { name: type.transactionCode.name },
+    };
 }
 
 function toInventory(inventory: GetType<typeof inventoryCodec>): OBInventory {
-    return { id: inventory.id, warehouseId: inventory.warehouse?.id };
-}
-
-function toTransactionBody(transaction: TransactionInput): object {
-    return {
-        transactionType: { id: transaction.transactionTypeId },
-        inventory: { id: transaction.inventoryId },
-        transactionDate: transaction.transactionDate.toISOString(),
-        transactionNumber: transaction.transactionNumber,
-        comment: transaction.comment,
-        confirmed: transaction.confirmed,
-        transactionEntries: transaction.entries.map(entry => ({
-            inventoryItem: { id: entry.inventoryItemId },
-            product: { id: entry.productId },
-            quantity: entry.quantity,
-            ...(entry.binLocationId ? { binLocation: { id: entry.binLocationId } } : {}),
-        })),
-    };
+    const { warehouse } = inventory;
+    return { id: inventory.id, warehouse: warehouse ? { id: warehouse.id } : undefined };
 }

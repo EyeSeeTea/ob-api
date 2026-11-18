@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FetchCall, hangUntilAborted, httpErrorOf, jsonResponse } from "../../__tests__/fetchStub";
-import { isCancel } from "../../repositories/CancelableResponse";
+import { FetchCall, httpErrorOf, jsonResponse } from "../../__tests__/fetchStub";
 import { availableItemBody, productBody } from "./endpointFixtures";
 import { API_URL, requestsAfterLogin, stubServer, testApi as api } from "./endpointServer";
 
@@ -74,11 +73,11 @@ describe("products.list", () => {
 });
 
 describe("products.availableItems", () => {
-    it("requests the items of the products at the location", async () => {
+    it("requests the items of the products at the location, in 1 request", async () => {
         const calls = stubServer(() => jsonResponse({ data: [] }));
 
         await api()
-            .products.availableItems({ locationId: "1", productIds: ["p1", "p2"] })
+            .products.availableItems({ location: { id: "1" }, product: { id: ["p1", "p2"] } })
             .getData();
 
         expect(requestsAfterLogin(calls()).map(call => call.url)).toEqual([
@@ -86,17 +85,17 @@ describe("products.availableItems", () => {
         ]);
     });
 
-    it("takes the product id from the nested product and renames dotted keys", async () => {
+    it("nests the dotted inventory item key and keeps the nested product", async () => {
         stubServer(() => jsonResponse({ data: [availableItemBody()] }));
 
         const result = await api()
-            .products.availableItems({ locationId: "1", productIds: ["prod-1"] })
+            .products.availableItems({ location: { id: "1" }, product: { id: ["prod-1"] } })
             .getData();
 
         expect(result.objects).toEqual([
             {
-                inventoryItemId: "inv-1",
-                productId: "prod-1",
+                inventoryItem: { id: "inv-1" },
+                product: { id: "prod-1" },
                 productCode: "AMOX500",
                 lotNumber: "LOT-1",
                 expirationDate: "05/27/2026",
@@ -119,7 +118,7 @@ describe("products.availableItems", () => {
 
         const [item] = (
             await api()
-                .products.availableItems({ locationId: "1", productIds: ["prod-1"] })
+                .products.availableItems({ location: { id: "1" }, product: { id: ["prod-1"] } })
                 .getData()
         ).objects;
 
@@ -133,14 +132,25 @@ describe("products.availableItems", () => {
 
         const error = await httpErrorOf(
             api()
-                .products.availableItems({ locationId: "1", productIds: ["prod-1"] })
+                .products.availableItems({ location: { id: "1" }, product: { id: ["prod-1"] } })
                 .getData()
         );
 
         expect(error.message).toContain("status");
     });
 
-    it("splits 120 products into requests of 50, 50 and 20 and keeps the items in order", async () => {
+    it("sends no request and gives no items for an empty list of product ids", async () => {
+        const calls = stubServer(() => jsonResponse({ data: [availableItemBody()] }));
+
+        const result = await api()
+            .products.availableItems({ location: { id: "1" }, product: { id: [] } })
+            .getData();
+
+        expect(requestsAfterLogin(calls())).toEqual([]);
+        expect(result.objects).toEqual([]);
+    });
+
+    it("sends all the product ids in 1 request", async () => {
         const calls = stubServer(call =>
             jsonResponse({
                 data: productIdsOf(call).map(id =>
@@ -150,39 +160,10 @@ describe("products.availableItems", () => {
         );
 
         const result = await api()
-            .products.availableItems({ locationId: "1", productIds: ids(120) })
+            .products.availableItems({ location: { id: "1" }, product: { id: ids(120) } })
             .getData();
 
-        expect(requestsAfterLogin(calls()).map(call => productIdsOf(call).length)).toEqual([
-            50, 50, 20,
-        ]);
-        expect(result.objects.map(item => item.productId)).toEqual(ids(120));
-    });
-
-    it("sends no request for an empty product list", async () => {
-        const calls = stubServer(() => jsonResponse({ data: [] }));
-
-        const result = await api()
-            .products.availableItems({ locationId: "1", productIds: [] })
-            .getData();
-
-        expect(result).toEqual({ objects: [] });
-        expect(calls()).toEqual([]);
-    });
-
-    it("stops the other chunks when canceled during the second chunk", async () => {
-        const calls = stubServer((call, previousCalls) =>
-            requestsAfterLogin(previousCalls).length === 0
-                ? jsonResponse({ data: [] })
-                : hangUntilAborted(call)
-        );
-        const response = api().products.availableItems({ locationId: "1", productIds: ids(120) });
-
-        const data = response.getData();
-        await vi.waitFor(() => expect(requestsAfterLogin(calls())).toHaveLength(2));
-        response.cancel();
-
-        expect(isCancel(await data.catch((error: unknown) => error))).toBe(true);
-        expect(requestsAfterLogin(calls())).toHaveLength(2);
+        expect(requestsAfterLogin(calls()).map(call => productIdsOf(call).length)).toEqual([120]);
+        expect(result.objects.map(item => item.product.id)).toEqual(ids(120));
     });
 });

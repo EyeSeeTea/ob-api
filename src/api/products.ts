@@ -1,8 +1,9 @@
 import { array, boolean, Codec, exactly, GetType, number, string } from "purify-ts";
 import { CancelableResponse, resolvedResponse } from "../repositories/CancelableResponse";
-import { chunk } from "../utils/arrays";
 import { Maybe } from "../utils/ts-utils";
-import { getChecked, nullish, RequestApi } from "./responseCheck";
+import type { EndpointApi } from "./endpoints";
+import { OBIdRef } from "./refs";
+import { nullish } from "./responseCheck";
 import { ListResult, Paginated } from "./results";
 
 export const OB_AVAILABLE_ITEM_STATUSES = [
@@ -32,8 +33,8 @@ export type OBBinLocation = Readonly<{
 }>;
 
 export type OBAvailableItem = Readonly<{
-    inventoryItemId: string;
-    productId: string;
+    inventoryItem: OBIdRef;
+    product: OBIdRef;
     productCode: string;
     lotNumber: Maybe<string>;
     /* As OpenBoxes sends it: MM/dd/yyyy, without a time zone. */
@@ -52,16 +53,20 @@ export type ProductListParams = Readonly<{
 }>;
 
 export type AvailableItemsParams = Readonly<{
-    locationId: string;
-    productIds: ReadonlyArray<string>;
+    location: OBIdRef;
+    /* One request for all ids: keep the list short (for example 50), so the URL stays under the server limit. */
+    product: Readonly<{ id: ReadonlyArray<string> }>;
+}>;
+
+export type AvailableItemsQuery = Readonly<{
+    "location.id": string;
+    "product.id": ReadonlyArray<string>;
 }>;
 
 export type Products = Readonly<{
     list(params?: ProductListParams): CancelableResponse<Paginated<OBProduct>>;
     availableItems(params: AvailableItemsParams): CancelableResponse<ListResult<OBAvailableItem>>;
 }>;
-
-const PRODUCTS_PER_REQUEST = 50;
 
 const productCodec = Codec.interface({
     id: string,
@@ -73,7 +78,10 @@ const productCodec = Codec.interface({
     lotAndExpiryControl: boolean,
 });
 
-const productListCodec = Codec.interface({ data: array(productCodec), totalCount: number });
+export const productListCodec = Codec.interface({
+    data: array(productCodec),
+    totalCount: number,
+});
 
 const availableItemCodec = Codec.interface({
     "inventoryItem.id": string,
@@ -89,40 +97,28 @@ const availableItemCodec = Codec.interface({
     status: exactly(...OB_AVAILABLE_ITEM_STATUSES),
 });
 
-const availableItemListCodec = Codec.interface({ data: array(availableItemCodec) });
+export const availableItemListCodec = Codec.interface({ data: array(availableItemCodec) });
 
-export function createProducts(api: RequestApi): Products {
+export function createProducts(api: EndpointApi): Products {
     function list(params: ProductListParams = {}): CancelableResponse<Paginated<OBProduct>> {
-        return getChecked(api, "/products", params, productListCodec).map(({ data }) => ({
-            objects: data.data.map(toProduct),
-            total: data.totalCount,
-        }));
+        return api
+            .request({ method: "get", path: "/products", params })
+            .map(({ data }) => ({ objects: data.data.map(toProduct), total: data.totalCount }));
     }
 
     function availableItems(
         params: AvailableItemsParams
     ): CancelableResponse<ListResult<OBAvailableItem>> {
-        const [firstIds, ...otherIds] = chunk(params.productIds, PRODUCTS_PER_REQUEST);
-        if (!firstIds) return resolvedResponse({ objects: [] });
+        // OpenBoxes answers 500 when the request has no `product.id`.
+        if (params.product.id.length === 0) return resolvedResponse({ objects: [] });
 
-        const getChunk = (productIds: ReadonlyArray<string>) =>
-            getChecked(
-                api,
-                "/products/availableItems",
-                { "location.id": params.locationId, "product.id": productIds },
-                availableItemListCodec
-            ).map(({ data }) => data.data.map(toAvailableItem));
-
-        // One request after another: each flatMap starts the next chunk when the previous one ends.
-        return otherIds
-            .reduce(
-                (previous, productIds) =>
-                    previous.flatMap(({ data: items }) =>
-                        getChunk(productIds).map(({ data }) => [...items, ...data])
-                    ),
-                getChunk(firstIds)
-            )
-            .map(({ data }) => ({ objects: data }));
+        const query: AvailableItemsQuery = {
+            "location.id": params.location.id,
+            "product.id": params.product.id,
+        };
+        return api
+            .request({ method: "get", path: "/products/availableItems", params: query })
+            .map(({ data }) => ({ objects: data.data.map(toAvailableItem) }));
     }
 
     return { list, availableItems };
@@ -143,8 +139,8 @@ function toProduct(product: GetType<typeof productCodec>): OBProduct {
 function toAvailableItem(item: GetType<typeof availableItemCodec>): OBAvailableItem {
     const { binLocation } = item;
     return {
-        inventoryItemId: item["inventoryItem.id"],
-        productId: item.product.id,
+        inventoryItem: { id: item["inventoryItem.id"] },
+        product: { id: item.product.id },
         productCode: item.productCode,
         lotNumber: item.lotNumber ?? undefined,
         expirationDate: item.expirationDate ?? undefined,

@@ -14,3 +14,4 @@ Write rules as invariants ("must", "never", "no …"), one topic per file (e.g. 
 | File | Covers |
 |------|--------|
 | [`http-boundary-cast.md`](http-boundary-cast.md) | Exception: the response body cast to `Data` in HTTP client repositories |
+| [`endpoint-overload.md`](endpoint-overload.md) | Exception: the overload of `requestEndpoint` that declares the checked response type |

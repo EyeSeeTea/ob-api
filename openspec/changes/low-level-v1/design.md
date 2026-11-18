@@ -122,4 +122,4 @@ caller
 
 ## Open Questions
 
-- Does `GET /products/availableItems` accept a request with no `product.id`? Check on the test server. The answer changes only a test.
+- Answered on 2026-11-18: `GET /products/availableItems` with no `product.id` makes OpenBoxes answer `500`. `availableItems` gives no items for an empty list and sends no request.

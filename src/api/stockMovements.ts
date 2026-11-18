@@ -4,7 +4,9 @@ import { HttpError, HttpRequest } from "../repositories/HttpClientRepository";
 import { joinPath } from "../utils/connection";
 import { Maybe } from "../utils/ts-utils";
 import type { OBApi } from "./OBApi";
-import { getChecked, nullish } from "./responseCheck";
+import type { EndpointApi } from "./endpoints";
+import { OBIdRef } from "./refs";
+import { nullish } from "./responseCheck";
 import { Paginated } from "./results";
 
 /* ShipmentStatusCode. Other values in receiptStatusCode make OpenBoxes answer 500. */
@@ -32,6 +34,11 @@ export type OBStockMovementDocument = Readonly<{
     contentType: Maybe<string>;
 }>;
 
+export type OBStockMovementAssociations = Readonly<{
+    shipment: Maybe<OBIdRef>;
+    documents: ReadonlyArray<OBStockMovementDocument>;
+}>;
+
 export type OBStockMovement = Readonly<{
     id: string;
     identifier: string;
@@ -40,7 +47,6 @@ export type OBStockMovement = Readonly<{
     /* A string, not a union: OpenBoxes sends values outside its own list, for example ISSUED. */
     statusCode: string;
     shipmentStatus: Maybe<OBShipmentStatus>;
-    shipmentId: Maybe<string>;
     origin: OBLocationRef;
     destination: OBLocationRef;
     shipmentType: Maybe<OBNamedRef>;
@@ -51,17 +57,18 @@ export type OBStockMovement = Readonly<{
     dateShipped: Maybe<string>;
     expectedDeliveryDate: Maybe<string>;
     lastUpdated: Maybe<string>;
-    documents: ReadonlyArray<OBStockMovementDocument>;
+    associations: OBStockMovementAssociations;
 }>;
 
 /* A movement from `list()`: OpenBoxes sends no documents in the list, so use `get(id)` for them. */
-export type OBStockMovementSummary = Omit<OBStockMovement, "documents">;
+export type OBStockMovementSummary = Omit<OBStockMovement, "associations"> &
+    Readonly<{ associations: Maybe<Omit<OBStockMovementAssociations, "documents">> }>;
 
 export type StockMovementListParams = Readonly<{
     direction?: OBStockMovementDirection;
     origin?: string;
     destination?: string;
-    receiptStatusCodes?: ReadonlyArray<OBShipmentStatus>;
+    receiptStatusCode?: ReadonlyArray<OBShipmentStatus>;
     max?: number;
     offset?: number;
 }>;
@@ -74,7 +81,8 @@ export type StockMovements = Readonly<{
     downloadDocument(uri: string): CancelableResponse<Blob>;
 }>;
 
-type StockMovementApi = Pick<OBApi, "request" | "post" | "baseUrl" | "apiPath">;
+type StockMovementApi = EndpointApi &
+    Pick<OBApi, "requestUntyped" | "post" | "baseUrl" | "apiPath">;
 
 const locationRefCodec = Codec.interface({
     id: string,
@@ -115,40 +123,27 @@ const stockMovementCodec = Codec.interface({
     ),
 });
 
-const stockMovementListCodec = Codec.interface({
+export const stockMovementListCodec = Codec.interface({
     data: array(stockMovementCodec),
     totalCount: number,
 });
 
-const stockMovementDetailCodec = Codec.interface({ data: stockMovementCodec });
+export const stockMovementDetailCodec = Codec.interface({ data: stockMovementCodec });
 
 export function createStockMovements(api: StockMovementApi): StockMovements {
     function list(
         params: StockMovementListParams = {}
     ): CancelableResponse<Paginated<OBStockMovementSummary>> {
-        const query = {
-            direction: params.direction,
-            origin: params.origin,
-            destination: params.destination,
-            receiptStatusCode: params.receiptStatusCodes,
-            max: params.max,
-            offset: params.offset,
-        };
-        return getChecked(api, "/stockMovements", query, stockMovementListCodec).map(
-            ({ data }) => ({
-                objects: data.data.map(toStockMovementSummary),
-                total: data.totalCount,
-            })
-        );
+        return api.request({ method: "get", path: "/stockMovements", params }).map(({ data }) => ({
+            objects: data.data.map(toStockMovementSummary),
+            total: data.totalCount,
+        }));
     }
 
     function get(id: string): CancelableResponse<OBStockMovement> {
-        return getChecked(
-            api,
-            `/stockMovements/${encodeURIComponent(id)}`,
-            undefined,
-            stockMovementDetailCodec
-        ).map(({ data }) => toStockMovement(data.data));
+        return api
+            .request({ method: "get", path: "/stockMovements/{id}", pathParams: { id } })
+            .map(({ data }) => toStockMovement(data.data));
     }
 
     function uploadDocument(id: string, file: Blob, fileName: string): CancelableResponse<void> {
@@ -174,7 +169,7 @@ export function createStockMovements(api: StockMovementApi): StockMovements {
         }
 
         const request: HttpRequest = { method: "get", url: path, responseDataType: "raw" };
-        return api.request<unknown>({ ...request, skipApiPrefix: true }).map(response => {
+        return api.requestUntyped<unknown>({ ...request, skipApiPrefix: true }).map(response => {
             if (response.data instanceof Blob) return response.data;
             throw new HttpError(`GET ${path} did not return a file`, { request, response });
         });
@@ -216,9 +211,13 @@ function toDocument(document: GetType<typeof documentCodec>): OBStockMovementDoc
 }
 
 function toStockMovement(movement: GetType<typeof stockMovementCodec>): OBStockMovement {
+    const { associations } = movement;
     return {
-        ...toStockMovementSummary(movement),
-        documents: (movement.associations?.documents ?? []).map(toDocument),
+        ...toStockMovementFields(movement),
+        associations: {
+            shipment: toShipmentRef(associations?.shipment),
+            documents: (associations?.documents ?? []).map(toDocument),
+        },
     };
 }
 
@@ -227,13 +226,25 @@ function toStockMovementSummary(
 ): OBStockMovementSummary {
     const { associations } = movement;
     return {
+        ...toStockMovementFields(movement),
+        associations: associations ? { shipment: toShipmentRef(associations.shipment) } : undefined,
+    };
+}
+
+function toShipmentRef(shipment: Maybe<{ id: string } | null>): Maybe<OBIdRef> {
+    return shipment ? { id: shipment.id } : undefined;
+}
+
+function toStockMovementFields(
+    movement: GetType<typeof stockMovementCodec>
+): Omit<OBStockMovement, "associations"> {
+    return {
         id: movement.id,
         identifier: movement.identifier,
         name: movement.name,
         description: movement.description ?? undefined,
         statusCode: movement.statusCode,
         shipmentStatus: movement.shipmentStatus ?? undefined,
-        shipmentId: associations?.shipment?.id,
         origin: toLocationRef(movement.origin),
         destination: toLocationRef(movement.destination),
         shipmentType: toNamedRef(movement.shipmentType ?? undefined),

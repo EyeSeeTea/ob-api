@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 describe("people.search", () => {
-    it("posts an ilike email search and returns the people", async () => {
+    it("posts the search attributes as they are and returns the people", async () => {
         const calls = stubServer(() =>
             jsonResponse({
                 data: [
@@ -24,7 +24,13 @@ describe("people.search", () => {
             })
         );
 
-        const result = await api().people.search({ email: "nurse@example.org" }).getData();
+        const result = await api()
+            .people.search({
+                searchAttributes: [
+                    { property: "email", operator: "ilike", value: "nurse@example.org" },
+                ],
+            })
+            .getData();
 
         const [search] = requestsAfterLogin(calls());
         expect(search?.url).toEqual(`${API_URL}/generic/person/search`);
@@ -42,7 +48,13 @@ describe("people.search", () => {
     it("returns no people when nothing matches", async () => {
         stubServer(() => jsonResponse({ data: [] }));
 
-        const result = await api().people.search({ email: "nobody@example.org" }).getData();
+        const result = await api()
+            .people.search({
+                searchAttributes: [
+                    { property: "email", operator: "eq", value: "nobody@example.org" },
+                ],
+            })
+            .getData();
 
         expect(result).toEqual({ objects: [] });
     });

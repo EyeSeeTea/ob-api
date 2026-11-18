@@ -1,11 +1,18 @@
 export { OBApi } from "./api/OBApi";
 export type { OBApiOptions, OBApiRequest } from "./api/OBApi";
+export type {
+    OBEndpointKey,
+    OBEndpointPath,
+    OBEndpointRequest,
+    OBEndpointResponse,
+} from "./api/endpoints";
 export { OB_TRANSACTION_CODES } from "./api/inventoryTransactions";
 export type {
     Inventories,
     OBInventory,
     OBTransactionCode,
     OBTransactionType,
+    TransactionBody,
     TransactionEntryInput,
     TransactionInput,
     Transactions,
@@ -15,16 +22,27 @@ export type { LocationListParams, Locations, OBLocation, OBLocationType } from "
 export { OB_PARTIAL_RECEIPT_STATUSES } from "./api/partialReceipts";
 export type {
     OBPartialReceipt,
+    OBPartialReceiptContainer,
     OBPartialReceiptItem,
     OBPartialReceiptStatus,
+    PartialReceiptBody,
+    PartialReceiptContainerInput,
     PartialReceiptInput,
     PartialReceiptItemInput,
     PartialReceipts,
 } from "./api/partialReceipts";
-export type { OBPerson, People, PeopleSearchParams } from "./api/people";
+export { OB_SEARCH_OPERATORS } from "./api/people";
+export type {
+    OBPerson,
+    OBSearchAttribute,
+    OBSearchBody,
+    OBSearchOperator,
+    People,
+} from "./api/people";
 export { OB_AVAILABLE_ITEM_STATUSES } from "./api/products";
 export type {
     AvailableItemsParams,
+    AvailableItemsQuery,
     OBAvailableItem,
     OBAvailableItemStatus,
     OBBinLocation,
@@ -32,6 +50,7 @@ export type {
     ProductListParams,
     Products,
 } from "./api/products";
+export type { OBIdRef, OBRef } from "./api/refs";
 export type { ListResult, Paginated } from "./api/results";
 export { OB_SHIPMENT_STATUSES } from "./api/stockMovements";
 export type {
@@ -39,6 +58,7 @@ export type {
     OBNamedRef,
     OBShipmentStatus,
     OBStockMovement,
+    OBStockMovementAssociations,
     OBStockMovementDirection,
     OBStockMovementDocument,
     OBStockMovementSummary,
