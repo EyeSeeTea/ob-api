@@ -34,7 +34,7 @@ type OBEndpointInputs = {
     "get /products": Input<{ params?: ProductListParams }>;
     "get /products/availableItems": Input<{ params: AvailableItemsQuery }>;
     "get /locations": Input<{ params?: LocationListParams }>;
-    "get /stockMovements": Input<{ params?: StockMovementListParams }>;
+    "get /stockMovements": Input<{ params: StockMovementListParams }>;
     "get /stockMovements/{id}": NoInput;
     "get /partialReceiving/{shipmentId}": NoInput;
     "post /partialReceiving/{shipmentId}": Input<{ data: PartialReceiptBody }>;

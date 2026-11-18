@@ -64,17 +64,20 @@ export type OBStockMovement = Readonly<{
 export type OBStockMovementSummary = Omit<OBStockMovement, "associations"> &
     Readonly<{ associations: Maybe<Omit<OBStockMovementAssociations, "documents">> }>;
 
+/* OpenBoxes answers 400 without `direction`, without at least one of `origin` and `destination`, or when they are the same. */
 export type StockMovementListParams = Readonly<{
-    direction?: OBStockMovementDirection;
-    origin?: string;
-    destination?: string;
+    direction: OBStockMovementDirection;
     receiptStatusCode?: ReadonlyArray<OBShipmentStatus>;
     max?: number;
     offset?: number;
-}>;
+}> &
+    (
+        | Readonly<{ origin: string; destination?: string }>
+        | Readonly<{ origin?: string; destination: string }>
+    );
 
 export type StockMovements = Readonly<{
-    list(params?: StockMovementListParams): CancelableResponse<Paginated<OBStockMovementSummary>>;
+    list(params: StockMovementListParams): CancelableResponse<Paginated<OBStockMovementSummary>>;
     get(id: string): CancelableResponse<OBStockMovement>;
     uploadDocument(id: string, file: Blob, fileName: string): CancelableResponse<void>;
     /* Only for a URI on the OpenBoxes server, so the session cookie goes nowhere else. */
@@ -132,7 +135,7 @@ export const stockMovementDetailCodec = Codec.interface({ data: stockMovementCod
 
 export function createStockMovements(api: StockMovementApi): StockMovements {
     function list(
-        params: StockMovementListParams = {}
+        params: StockMovementListParams
     ): CancelableResponse<Paginated<OBStockMovementSummary>> {
         return api.request({ method: "get", path: "/stockMovements", params }).map(({ data }) => ({
             objects: data.data.map(toStockMovementSummary),

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { jsonResponse } from "../../__tests__/fetchStub";
+import { httpErrorOf, jsonResponse } from "../../__tests__/fetchStub";
 import { locationBody } from "./endpointFixtures";
 import { API_URL, stubServer, testApi as api } from "./endpointServer";
 
@@ -33,6 +33,22 @@ describe("locations.list", () => {
         await api().locations.list({ locationTypeCode: "DEPOT" }).getData();
 
         expect(calls()[1]?.url).toEqual(`${API_URL}/locations?locationTypeCode=DEPOT`);
+    });
+
+    it("rejects a location type code that OpenBoxes does not have", async () => {
+        stubServer(() =>
+            jsonResponse({
+                data: [
+                    locationBody({
+                        locationType: { id: "9", name: "Odd", locationTypeCode: "NOPE" },
+                    }),
+                ],
+            })
+        );
+
+        const error = await httpErrorOf(api().locations.list().getData());
+
+        expect(error.message).toContain("locationTypeCode");
     });
 
     it("gives undefined for a null location number and keeps a parent location", async () => {

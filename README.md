@@ -52,6 +52,8 @@ const pending = await api.partialReceipts
         containers: receipt.containers.map(({ shipmentItems }) => ({
             shipmentItems: shipmentItems.map(item => ({
                 shipmentItemId: item.shipmentItemId,
+                lotNumber: item.lotNumber,
+                expirationDate: item.expirationDate,
                 quantityReceiving: item.quantityRemaining,
                 cancelRemaining: false,
             })),
@@ -79,7 +81,7 @@ api.request({ method: "get", path: "/stockMovments" }); // TypeScript error: no 
 | `products.list({ max?, offset?, q? })`                                                          | `GET /products`                      | `{ objects: OBProduct[], total }`              |
 | `products.availableItems({ location: { id }, product: { id: [...] } })`                         | `GET /products/availableItems`       | `{ objects: OBAvailableItem[] }`               |
 | `locations.list({ locationTypeCode? })`                                                         | `GET /locations`                     | `{ objects: OBLocation[] }`                    |
-| `stockMovements.list({ direction?, origin?, destination?, receiptStatusCode?, max?, offset? })` | `GET /stockMovements`                | `{ objects: OBStockMovementSummary[], total }` |
+| `stockMovements.list({ direction, origin and/or destination, receiptStatusCode?, max?, offset? })` | `GET /stockMovements`                | `{ objects: OBStockMovementSummary[], total }` |
 | `stockMovements.get(id)`                                                                        | `GET /stockMovements/{id}`           | `OBStockMovement`                              |
 | `stockMovements.downloadDocument(uri)`                                                          | `GET <uri>`                          | `Blob`                                         |
 | `partialReceipts.get(shipmentId)`                                                               | `GET /partialReceiving/{shipmentId}` | `OBPartialReceipt`                             |
@@ -113,9 +115,10 @@ Parameters and inputs:
 - `q` is a search: OpenBoxes matches it against the name, the code and other fields. Filter the result for an exact code.
 - `availableItems` sends all the product ids in 1 request. Keep the list short (for example 50 ids), so the URL stays under the server limit. For more products, call it once for each group of ids. An empty list gives no items and sends no request, because OpenBoxes answers `500` without `product.id`.
 - `locations.list` returns the locations the user can see. OpenBoxes does not page this list.
-- `stockMovements.list` needs `direction`, or an `origin` different from the `destination`. Without them, OpenBoxes answers `400`. `receiptStatusCode` accepts only shipment statuses (`OB_SHIPMENT_STATUSES`); OpenBoxes answers `500` for other values.
-- `savePending` and `complete` send `dateDelivered` in UTC as `MM/dd/yyyy HH:mm Z`, the only format OpenBoxes accepts. They send `null` for absent receipt ids, lots and expiry dates, so OpenBoxes clears them. `complete` rejects an answer that is not the empty `{ data: {} }`.
-- `people.search` takes the generic OpenBoxes search body. `operator` is `eq` (exact), `like` or `ilike` (ignores case); `like` and `ilike` take `%` as the wildcard. OpenBoxes rejects an empty `value`.
+- `locationTypeCode` is one of `OB_LOCATION_TYPE_CODES`, the `LocationTypeCode` enum of OpenBoxes. OpenBoxes answers `500` for other values.
+- `stockMovements.list` needs `direction` and at least one of `origin` and `destination`, or OpenBoxes answers `400`. The type requires them. `origin` and `destination` must also be different: OpenBoxes answers `400` when they are the same. `receiptStatusCode` accepts only shipment statuses (`OB_SHIPMENT_STATUSES`); OpenBoxes answers `500` for other values.
+- `savePending` and `complete` send `dateDelivered` in UTC as `MM/dd/yyyy HH:mm Z`, the only format OpenBoxes accepts. They send `null` for absent receipt ids, lots and expiry dates, so OpenBoxes clears them. Each item needs `lotNumber` and `expirationDate`: OpenBoxes receives the stock into the lot of the body, not of the shipment, so copy them from `get()`. `undefined` receives the stock without a lot. `complete` rejects an answer that is not the empty `{ data: {} }`.
+- `people.search` takes the generic OpenBoxes search body. `operator` is `eq` (exact), `like` or `ilike` (ignores case); `like` and `ilike` take `%` as the wildcard. `search` rejects an attribute with an empty `property` or `value` before the request, because OpenBoxes answers `500` for it.
 - `uploadDocument` posts outside `apiPath`, to the OpenBoxes web app path: `apiPath` without its last `api` segment (`openboxes/api` gives `openboxes`).
 - `downloadDocument` accepts only a URI on the OpenBoxes server (it starts with `baseUrl`), so the session cookie goes nowhere else. For another URI, it rejects without a request.
 - `chooseLocation` changes the location of the current session, and later automatic logins use it. `login(locationId)` does the same with a new login.

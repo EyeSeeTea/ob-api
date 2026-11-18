@@ -22,3 +22,8 @@
 
 - **WHEN** OpenBoxes answers `{ data: [] }`
 - **THEN** the result is `{ objects: [] }`
+
+#### Scenario: Empty property or value
+
+- **WHEN** the caller runs `api.people.search({ searchAttributes: [{ property: "email", operator: "eq", value: "" }] })`
+- **THEN** the client rejects the search without a request, because OpenBoxes answers `500` for an empty property or value

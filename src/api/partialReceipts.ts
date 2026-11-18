@@ -67,8 +67,12 @@ export type PartialReceiptItemInput = Readonly<{
     cancelRemaining: boolean;
     receiptItemId?: string;
     product?: OBIdRef;
-    lotNumber?: string;
-    expirationDate?: string;
+    /*
+     * Required keys: OpenBoxes receives the stock into the lot and expiry of the body, not of the shipment.
+     * `undefined` sends `null`, which receives the stock without a lot. Copy them from `get()` to keep them.
+     */
+    lotNumber: Maybe<string>;
+    expirationDate: Maybe<string>;
     binLocation?: Readonly<{ id: string; name?: string }>;
     recipient?: OBIdRef;
     comment?: string;

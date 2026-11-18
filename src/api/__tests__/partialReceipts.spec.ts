@@ -173,7 +173,7 @@ describe("partialReceipts.savePending and complete", () => {
         );
     });
 
-    it("posts the OpenBoxes body with a UTC date and null for absent fields", async () => {
+    it("posts the OpenBoxes body with a UTC date, and null for an absent receipt id, lot and expiry", async () => {
         const calls = stubServer(() => jsonResponse({ data: partialReceiptBody() }));
 
         await api()
@@ -186,6 +186,8 @@ describe("partialReceipts.savePending and complete", () => {
                                 shipmentItemId: "si-1",
                                 product: { id: "p1" },
                                 recipient: { id: "u1" },
+                                lotNumber: undefined,
+                                expirationDate: undefined,
                                 quantityReceiving: 5,
                                 cancelRemaining: false,
                             },
@@ -262,6 +264,8 @@ describe("partialReceipts.savePending and complete", () => {
                             {
                                 shipmentItemId: "si-1",
                                 binLocation: { id: "bin-1", name: undefined },
+                                lotNumber: "LOT-1",
+                                expirationDate: "05/27/2027",
                                 quantityReceiving: 5,
                                 cancelRemaining: false,
                             },

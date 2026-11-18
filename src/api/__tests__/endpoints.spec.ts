@@ -115,6 +115,25 @@ export function typeErrors(client: ReturnType<typeof api>) {
     client.request({ method: "get", path: "/products", pathParams: { id: "1" } });
     // @ts-expect-error: missing required query parameters
     client.request({ method: "get", path: "/products/availableItems" });
+    // @ts-expect-error: unknown location type code
+    client.request({ method: "get", path: "/locations", params: { locationTypeCode: "NOPE" } });
+    client.partialReceipts.savePending("sh-1", {
+        dateDelivered: new Date(),
+        containers: [
+            {
+                shipmentItems: [
+                    // @ts-expect-error: an item needs lotNumber and expirationDate, or the stock loses its lot
+                    { shipmentItemId: "si-1", quantityReceiving: 1, cancelRemaining: false },
+                ],
+            },
+        ],
+    });
+    // @ts-expect-error: stockMovements.list needs its params
+    client.stockMovements.list();
+    // @ts-expect-error: a stock movement list needs a direction
+    client.request({ method: "get", path: "/stockMovements", params: { destination: "1" } });
+    // @ts-expect-error: a stock movement list needs an origin or a destination
+    client.request({ method: "get", path: "/stockMovements", params: { direction: "INBOUND" } });
     client.request({
         method: "post",
         path: "/generic/person/search",

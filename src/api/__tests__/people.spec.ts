@@ -58,4 +58,20 @@ describe("people.search", () => {
 
         expect(result).toEqual({ objects: [] });
     });
+
+    it("rejects an attribute with an empty value or property, without a request", async () => {
+        const calls = stubServer(() => jsonResponse({ data: [] }));
+
+        await expect(
+            api()
+                .people.search({
+                    searchAttributes: [
+                        { property: "email", operator: "eq", value: "" },
+                        { property: "", operator: "eq", value: "x" },
+                    ],
+                })
+                .getData()
+        ).rejects.toThrow('Search attributes need a property and a value: "email", ""');
+        expect(requestsAfterLogin(calls())).toEqual([]);
+    });
 });

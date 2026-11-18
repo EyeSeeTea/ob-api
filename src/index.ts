@@ -18,7 +18,14 @@ export type {
     Transactions,
     TransactionTypes,
 } from "./api/inventoryTransactions";
-export type { LocationListParams, Locations, OBLocation, OBLocationType } from "./api/locations";
+export { OB_LOCATION_TYPE_CODES } from "./api/locations";
+export type {
+    LocationListParams,
+    Locations,
+    OBLocation,
+    OBLocationType,
+    OBLocationTypeCode,
+} from "./api/locations";
 export { OB_PARTIAL_RECEIPT_STATUSES } from "./api/partialReceipts";
 export type {
     OBPartialReceipt,

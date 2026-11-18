@@ -4,6 +4,8 @@ import { OBApi } from "../OBApi";
 import { stockMovementBody } from "./endpointFixtures";
 import { API_URL, AUTH, requestsAfterLogin, stubServer, testApi as api } from "./endpointServer";
 
+const INBOUND_TO_DEPOT = { direction: "INBOUND", destination: "1" } as const;
+
 afterEach(() => {
     vi.unstubAllGlobals();
 });
@@ -35,7 +37,7 @@ describe("stockMovements.list", () => {
             })
         );
 
-        const result = await api().stockMovements.list().getData();
+        const result = await api().stockMovements.list(INBOUND_TO_DEPOT).getData();
 
         expect(result.total).toEqual(35);
         expect(result.objects.map(movement => movement.id)).toEqual(["sm-1", "sm-2"]);
@@ -45,7 +47,7 @@ describe("stockMovements.list", () => {
     it("returns no documents, because OpenBoxes sends none in the list", async () => {
         stubServer(() => jsonResponse({ data: [stockMovementBody()], totalCount: 1 }));
 
-        const result = await api().stockMovements.list().getData();
+        const result = await api().stockMovements.list(INBOUND_TO_DEPOT).getData();
 
         expect(result.objects[0]?.associations).not.toHaveProperty("documents");
     });

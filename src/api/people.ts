@@ -1,5 +1,5 @@
 import { array, Codec, GetType, string } from "purify-ts";
-import { CancelableResponse } from "../repositories/CancelableResponse";
+import { CancelableResponse, rejectedResponse } from "../repositories/CancelableResponse";
 import { Maybe } from "../utils/ts-utils";
 import type { EndpointApi } from "./endpoints";
 import { nullish } from "./responseCheck";
@@ -14,7 +14,7 @@ export type OBSearchAttribute = Readonly<{
     property: string;
     /* `like` and `ilike` take `%` as the wildcard; without it they match the whole value. */
     operator: OBSearchOperator;
-    /* OpenBoxes rejects an empty value. */
+    /* `search` rejects an empty value before the request: OpenBoxes answers 500 for it. */
     value: string;
 }>;
 
@@ -32,12 +32,28 @@ const personCodec = Codec.interface({ id: string, name: nullish(string), email: 
 export const personListCodec = Codec.interface({ data: array(personCodec) });
 
 export function createPeople(api: EndpointApi): People {
-    return {
-        search: body =>
-            api
-                .request({ method: "post", path: "/generic/person/search", data: body })
-                .map(({ data }) => ({ objects: data.data.map(toPerson) })),
-    };
+    function search(body: OBSearchBody): CancelableResponse<ListResult<OBPerson>> {
+        const incomplete = body.searchAttributes.filter(isIncomplete);
+        if (incomplete.length > 0) {
+            const names = incomplete
+                .map(attribute => JSON.stringify(attribute.property))
+                .join(", ");
+            return rejectedResponse(
+                new Error(`Search attributes need a property and a value: ${names}`)
+            );
+        }
+
+        return api
+            .request({ method: "post", path: "/generic/person/search", data: body })
+            .map(({ data }) => ({ objects: data.data.map(toPerson) }));
+    }
+
+    return { search };
+}
+
+/* OpenBoxes answers 500 for an empty property or value ("Property and value are required"). */
+function isIncomplete(attribute: OBSearchAttribute): boolean {
+    return attribute.property === "" || attribute.value === "";
 }
 
 function toPerson(person: GetType<typeof personCodec>): OBPerson {

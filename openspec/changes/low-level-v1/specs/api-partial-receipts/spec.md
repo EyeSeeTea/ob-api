@@ -58,9 +58,14 @@ Each item SHALL have `shipmentItemId`, `product` (`id`, `productCode`, `name`), 
 
 ### Requirement: Partial receipt body
 
-The client SHALL send the containers and items of the input, in their order. `dateDelivered` SHALL be in UTC as `MM/dd/yyyy HH:mm Z`, the only format OpenBoxes accepts. An absent `receiptId`, `receiptItemId`, `lotNumber` or `expirationDate` SHALL be `null`, so OpenBoxes clears it. `product`, `recipient` and `binLocation` SHALL be sent only when they are given.
+The client SHALL send the containers and items of the input, in their order. `dateDelivered` SHALL be in UTC as `MM/dd/yyyy HH:mm Z`, the only format OpenBoxes accepts. Each item SHALL have the keys `lotNumber` and `expirationDate`, because OpenBoxes receives the stock into the lot and expiry of the body, not of the shipment. An absent `receiptId` or `receiptItemId`, and an `undefined` `lotNumber` or `expirationDate`, SHALL be `null`, so OpenBoxes clears it. `product`, `recipient` and `binLocation` SHALL be sent only when they are given.
 
 #### Scenario: Body of the received quantities
 
-- **WHEN** the caller runs `savePending` with `{ dateDelivered: new Date("2026-06-24T06:40:00Z"), containers: [{ shipmentItems: [{ shipmentItemId: "si-1", product: { id: "p1" }, recipient: { id: "u1" }, quantityReceiving: 5, cancelRemaining: false }] }] }`
+- **WHEN** the caller runs `savePending` with `{ dateDelivered: new Date("2026-06-24T06:40:00Z"), containers: [{ shipmentItems: [{ shipmentItemId: "si-1", product: { id: "p1" }, recipient: { id: "u1" }, lotNumber: undefined, expirationDate: undefined, quantityReceiving: 5, cancelRemaining: false }] }] }`
 - **THEN** the client sends the body `{ receiptId: null, receiptStatus: "PENDING", dateDelivered: "06/24/2026 06:40 Z", containers: [{ shipmentItems: [{ receiptItemId: null, shipmentItemId: "si-1", product: { id: "p1" }, lotNumber: null, expirationDate: null, quantityReceiving: 5, cancelRemaining: false, recipient: { id: "u1" } }] }] }`
+
+#### Scenario: Item without the lot fields
+
+- **WHEN** the caller writes an item without `lotNumber` or `expirationDate`
+- **THEN** the call does not compile, because OpenBoxes would receive the stock without a lot
