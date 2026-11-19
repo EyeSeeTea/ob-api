@@ -8,7 +8,7 @@ Typed access to the OpenBoxes generic API for inventory transactions: list the t
 
 ### Requirement: List transaction types
 
-`api.transactionTypes.list()` SHALL request `GET <apiPath>/generic/TransactionType` and return `{ objects }`. Each type SHALL have `id`, `name` and `transactionCode` (`name`: one of `DEBIT`, `CREDIT`, `INVENTORY` and `PRODUCT_INVENTORY`).
+`api.generic.transactionTypes.list()` SHALL request `GET <apiPath>/generic/TransactionType` and return `{ objects }`. Each type SHALL have `id`, `name` and `transactionCode` (`name`: one of `DEBIT`, `CREDIT`, `INVENTORY` and `PRODUCT_INVENTORY`).
 
 #### Scenario: Find the consumption type
 
@@ -17,7 +17,7 @@ Typed access to the OpenBoxes generic API for inventory transactions: list the t
 
 ### Requirement: List inventories
 
-`api.inventories.list()` SHALL request `GET <apiPath>/generic/inventory` and return `{ objects }`. Each inventory SHALL have `id`, and MAY have `warehouse` (`id`), the location that owns it.
+`api.generic.inventories.list()` SHALL request `GET <apiPath>/generic/inventory` and return `{ objects }`. Each inventory SHALL have `id`, and MAY have `warehouse` (`id`), the location that owns it.
 
 #### Scenario: Inventory of a location
 
@@ -26,7 +26,7 @@ Typed access to the OpenBoxes generic API for inventory transactions: list the t
 
 ### Requirement: Create a transaction
 
-`api.transactions.create(transaction)` SHALL send `POST <apiPath>/generic/transaction` and return `{ id }` of the new transaction. The input has `transactionType` and `inventory` (`{ id }`), `transactionDate` (a `Date`, sent as ISO 8601) and `transactionEntries`. It MAY have `transactionNumber`, `comment` and `confirmed`. Each entry has `inventoryItem` and `product` (`{ id }`) and `quantity`, and MAY have `binLocation` (`{ id }`).
+`api.generic.transactions.create(transaction)` SHALL send `POST <apiPath>/generic/transaction` and return `{ id }` of the new transaction. The input has `transactionType` and `inventory` (`{ id }`), `transactionDate` (a `Date`, sent as ISO 8601) and `transactionEntries`. It MAY have `transactionNumber`, `comment` and `confirmed`. Each entry has `inventoryItem` and `product` (`{ id }`) and `quantity`, and MAY have `binLocation` (`{ id }`).
 
 #### Scenario: Consumption
 
