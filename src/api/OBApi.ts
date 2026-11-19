@@ -4,10 +4,26 @@ import {
     Credentials,
     HttpClientRepository,
     HttpRequest,
+    Method,
     Params,
 } from "../repositories/HttpClientRepository";
 import { joinPath } from "../utils/connection";
+import {
+    OBEndpointPath,
+    OBEndpointRequest,
+    OBEndpointResponse,
+    requestEndpoint,
+} from "./endpoints";
+import { Categories, createCategories } from "./categories";
+import { createGeneric, Generic } from "./generic";
+import { createLocations, Locations } from "./locations";
+import { createPartialReceipts, PartialReceipts } from "./partialReceipts";
+import { createProductPackages, ProductPackages } from "./productPackages";
+import { createProducts, Products } from "./products";
+import { createPurchaseOrders, PurchaseOrders } from "./purchaseOrders";
 import { createSession, Session } from "./session";
+import { createStockMovements, StockMovements } from "./stockMovements";
+import { createStockTransfers, StockTransfers } from "./stockTransfers";
 
 export type OBApiOptions = Readonly<{
     baseUrl: string;
@@ -29,6 +45,15 @@ const PATCH_HEADERS = { "Content-Type": "application/json-patch+json" };
 export class OBApi {
     readonly baseUrl: string;
     readonly apiPath: string;
+    readonly products: Products;
+    readonly productPackages: ProductPackages;
+    readonly locations: Locations;
+    readonly categories: Categories;
+    readonly stockMovements: StockMovements;
+    readonly partialReceipts: PartialReceipts;
+    readonly stockTransfers: StockTransfers;
+    readonly purchaseOrders: PurchaseOrders;
+    readonly generic: Generic;
     private readonly session: Session;
 
     constructor(options: OBApiOptions) {
@@ -43,7 +68,17 @@ export class OBApi {
             auth,
             locationId,
             loginUrl: joinPath(apiPath, "login"),
+            chooseLocationUrl: joinPath(apiPath, "chooseLocation"),
         });
+        this.products = createProducts(this);
+        this.productPackages = createProductPackages(this);
+        this.locations = createLocations(this);
+        this.categories = createCategories(this);
+        this.stockMovements = createStockMovements(this);
+        this.partialReceipts = createPartialReceipts(this);
+        this.stockTransfers = createStockTransfers(this);
+        this.purchaseOrders = createPurchaseOrders(this);
+        this.generic = createGeneric(this);
     }
 
     /* Logs in again, even with a valid session. A given location is also used by later logins. */
@@ -51,14 +86,27 @@ export class OBApi {
         return this.session.login(locationId);
     }
 
-    request<Data>(options: OBApiRequest): CancelableResponse<Data> {
+    /* Keeps the current session; `login(locationId)` logs in again instead. */
+    chooseLocation(locationId: string): CancelableResponse<void> {
+        return this.session.chooseLocation(locationId);
+    }
+
+    /* A typed OpenBoxes endpoint: `method` and `path` choose the params, the body and the checked response. */
+    request<M extends Method, Path extends OBEndpointPath<M>>(
+        options: OBEndpointRequest<M, Path>
+    ): CancelableResponse<OBEndpointResponse<`${M} ${Path}`>> {
+        return requestEndpoint(this, options);
+    }
+
+    /* Any request, without a response check: for endpoints that ob-api does not type. */
+    requestUntyped<Data>(options: OBApiRequest): CancelableResponse<Data> {
         const { skipApiPrefix, ...request } = options;
         const url = skipApiPrefix ? request.url : joinPath(this.apiPath, request.url);
         return this.session.send({ ...request, url });
     }
 
     get<Data>(url: string, params?: Params): CancelableResponse<Data> {
-        return this.request<Data>({ method: "get", url, params });
+        return this.requestUntyped<Data>({ method: "get", url, params });
     }
 
     post<Data>(
@@ -67,18 +115,24 @@ export class OBApi {
         data?: object,
         request?: Partial<OBApiRequest>
     ): CancelableResponse<Data> {
-        return this.request<Data>({ method: "post", url, params, data, ...request });
+        return this.requestUntyped<Data>({ method: "post", url, params, data, ...request });
     }
 
     put<Data>(url: string, params?: Params, data?: object): CancelableResponse<Data> {
-        return this.request<Data>({ method: "put", url, params, data });
+        return this.requestUntyped<Data>({ method: "put", url, params, data });
     }
 
     patch<Data>(url: string, params?: Params, data?: object): CancelableResponse<Data> {
-        return this.request<Data>({ method: "patch", url, params, data, headers: PATCH_HEADERS });
+        return this.requestUntyped<Data>({
+            method: "patch",
+            url,
+            params,
+            data,
+            headers: PATCH_HEADERS,
+        });
     }
 
     delete<Data>(url: string, params?: Params): CancelableResponse<Data> {
-        return this.request<Data>({ method: "delete", url, params });
+        return this.requestUntyped<Data>({ method: "delete", url, params });
     }
 }

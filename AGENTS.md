@@ -48,9 +48,10 @@ Architecture, functional style, TypeScript, testing, and security rules are defi
 Before considering work done, update all that apply:
 
 1. **README.md** — if the public API changed.
-2. **PR description** — if a PR is open (`gh pr view`), propose the updated summary and test plan; the developer applies it (see [Shared systems](#shared-systems)).
-3. **OpenSpec specs** — update `openspec/specs/` (and any archived copy) if behavior relates to an existing spec.
-4. **Version** — bump `version` in `package.json` before a release.
+2. **GitHub wiki** — if an endpoint was added or changed ([`endpoint-wiki.md`](.est_ai/rules/project/endpoint-wiki.md)).
+3. **PR description** — if a PR is open (`gh pr view`), propose the updated summary and test plan; the developer applies it (see [Shared systems](#shared-systems)).
+4. **OpenSpec specs** — update `openspec/specs/` (and any archived copy) if behavior relates to an existing spec.
+5. **Version** — bump `version` in `package.json` before a release.
 
 ## Before committing
 

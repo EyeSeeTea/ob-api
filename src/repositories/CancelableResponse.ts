@@ -35,15 +35,19 @@ export class CancelableResponse<Data> {
         const { cancel, response } = this;
         // Set once the first response arrives, so cancel() can also stop the second request.
         let cancelSecond: Maybe<Canceler>;
+        // Kept so a cancel that comes before the second request starts still stops it.
+        let cancelRequest: Maybe<Readonly<{ message?: string }>>;
 
         const mappedResponse = () =>
             response().then(response_ => {
                 const second = mapper(response_);
                 cancelSecond = second.cancel;
+                if (cancelRequest) second.cancel(cancelRequest.message);
                 return second.response();
             });
 
         const cancelAll: Canceler = message => {
+            cancelRequest = { message };
             cancel(message);
             cancelSecond?.(message);
         };
@@ -67,3 +71,15 @@ export function toAbortReason(message?: string): Maybe<DOMException> {
 }
 
 const noop: Canceler = () => {};
+
+/* A response that needs no request, for example the result of an empty list of ids. */
+export function resolvedResponse<Data>(data: Data): CancelableResponse<Data> {
+    return CancelableResponse.build({
+        response: () => Promise.resolve({ status: 200, headers: {}, data }),
+    });
+}
+
+/* A response that fails before any request, for example for an input the client refuses. */
+export function rejectedResponse<Data>(error: Error): CancelableResponse<Data> {
+    return CancelableResponse.build({ response: () => Promise.reject(error) });
+}

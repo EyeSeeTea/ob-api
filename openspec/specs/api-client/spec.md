@@ -133,3 +133,121 @@ The client SHALL send a `FormData`, `Blob`, `URLSearchParams`, `ArrayBuffer` or 
 
 - **WHEN** the caller runs `post("/products", undefined, { name: "Gloves" })`
 - **THEN** the client sends the JSON body `{"name":"Gloves"}` with a JSON `Content-Type`
+
+### Requirement: Typed endpoints check the response
+
+A typed endpoint (for example `api.products.list()`) SHALL check the response body against the fields it returns. A field that it returns and that is missing or has a wrong type SHALL reject the request with an HTTP error that keeps the response and names the endpoint and the problem. Fields that the endpoint does not return SHALL be ignored, so fields that a newer OpenBoxes adds do not cause an error.
+
+#### Scenario: Missing field
+
+- **WHEN** a product in the response of `api.products.list()` has no `productCode`
+- **THEN** the request rejects with an HTTP error that keeps the response, and its message names `GET …/products` and `productCode`
+
+#### Scenario: Extra field
+
+- **WHEN** a product in the response has a field that the endpoint does not return, for example `color`
+- **THEN** the request succeeds and the result does not contain that field
+
+### Requirement: Typed request
+
+`api.request({ method, path, pathParams, params, data })` SHALL send a request to a typed OpenBoxes endpoint. `method` and `path` SHALL select the endpoint, for example `get` and `/stockMovements/{id}`. The types of `pathParams`, `params` and `data` SHALL come from that endpoint, with the OpenBoxes names. The result SHALL be the response body as OpenBoxes sends it (its `data` envelope, dotted keys and `null` values), checked at runtime against the endpoint's fields.
+
+#### Scenario: Typed path
+
+- **WHEN** the caller runs `api.request({ method: "get", path: "/stockMovements/{id}", pathParams: { id: "sm-1" } })`
+- **THEN** the client requests `…/openboxes/api/stockMovements/sm-1`
+- **AND** the result is the checked response body, for example `{ data: { id: "sm-1", … } }`
+
+#### Scenario: Lowercase method
+
+- **WHEN** the caller writes `method: "GET"`
+- **THEN** TypeScript reports an error, because methods are lowercase, as in `requestUntyped`
+
+#### Scenario: Path parameters are encoded
+
+- **WHEN** a path parameter has a `/` or a space
+- **THEN** the client encodes it in the URL
+
+### Requirement: Typed request rejects unknown endpoints at compile time
+
+A `method` and `path` pair that is not a typed endpoint SHALL be a TypeScript error. A param, a body field or a path parameter that the endpoint does not take, or that has a wrong type, SHALL also be a TypeScript error.
+
+#### Scenario: Typo in a path
+
+- **WHEN** the caller writes `api.request({ method: "get", path: "/stockMovments" })`
+- **THEN** TypeScript reports an error
+
+#### Scenario: Wrong method
+
+- **WHEN** the caller writes `api.request({ method: "delete", path: "/stockMovements" })`
+- **THEN** TypeScript reports an error
+
+### Requirement: Untyped request
+
+`api.requestUntyped(options)` SHALL send any request, with the options that `request` took before this change: `method`, `url`, `params`, `data`, `headers`, `responseDataType` and `skipApiPrefix`. It SHALL NOT check the response. `get`, `post`, `put`, `patch` and `delete` SHALL stay untyped. They are the way to call endpoints that ob-api does not type, for example custom data models.
+
+#### Scenario: Endpoint that is not typed
+
+- **WHEN** the caller runs `api.requestUntyped({ method: "get", url: "/customModel" })`
+- **THEN** the client sends the request and returns the response data as received
+
+### Requirement: Typed results follow the OpenBoxes structure
+
+The result of a resource method (for example `api.stockMovements.get()`) SHALL keep the OpenBoxes field names and nesting, with only these changes: a dotted key becomes a nested object (`"product.id"` → `product: { id }`), `null` becomes `undefined`, and fields that the endpoint does not type are left out. A list result SHALL be `{ objects }`, or `{ objects, total }` when OpenBoxes sends `totalCount`.
+
+#### Scenario: Dotted keys
+
+- **WHEN** OpenBoxes answers an item with `"product.id": "p1"` and `"product.name": "Amoxicillin"`
+- **THEN** the result item has `product: { id: "p1", name: "Amoxicillin" }`
+
+#### Scenario: Null value
+
+- **WHEN** OpenBoxes answers a field with `null`
+- **THEN** the result has that field `undefined`
+
+### Requirement: Typed inputs follow the OpenBoxes body
+
+The params and the write inputs of a resource method SHALL use the OpenBoxes names and nesting, for example `transactionType: { id }`. A `Date` input SHALL be sent in the date format that the endpoint accepts. An absent optional value SHALL be left out, or sent as `null` when OpenBoxes needs `null` to clear the field. Dotted query parameters SHALL be nested objects in the input (`location: { id }` is sent as `location.id`).
+
+#### Scenario: Nested query parameter
+
+- **WHEN** an endpoint takes the query parameter `location.id` and the caller gives `location: { id: "1" }`
+- **THEN** the client sends `location.id=1`
+
+### Requirement: Generic API resources
+
+Every typed resource that uses the OpenBoxes generic API (`<apiPath>/generic/{resource}`) SHALL be under `api.generic`, with a plural name (`api.generic.products` for `/generic/product`). Each resource SHALL have its own literal path in the typed request (`/generic/product/{id}`), so that the body and the response are checked for that resource. A resource with a dedicated OpenBoxes API (for example `/products`) SHALL stay at the top level.
+
+#### Scenario: Generic and dedicated product endpoints
+
+- **WHEN** the caller uses `api.products.create(…)` and `api.generic.products.update(id, …)`
+- **THEN** the first sends `POST …/openboxes/api/products` and the second sends `PUT …/openboxes/api/generic/product/{id}`
+
+#### Scenario: Typed generic request
+
+- **WHEN** the caller runs `api.request({ method: "put", path: "/generic/product/{id}", pathParams: { id: "p1" }, data: { name: "Gloves" } })`
+- **THEN** TypeScript accepts it and the client sends `PUT …/openboxes/api/generic/product/p1`
+
+#### Scenario: Resource that is not typed
+
+- **WHEN** the caller runs `api.request({ method: "get", path: "/generic/{resource}" })`
+- **THEN** TypeScript rejects it; the caller uses `requestUntyped` for a generic resource that ob-api does not type
+
+### Requirement: Write endpoints without a body in the answer
+
+A typed endpoint that OpenBoxes answers with an empty body (status `200` or `204`) SHALL resolve with no value. Any status that is not `2xx` SHALL reject with an HTTP error, as for the other requests.
+
+#### Scenario: Delete
+
+- **WHEN** OpenBoxes answers a `DELETE` with status `204` and no body
+- **THEN** the request resolves with no value
+
+### Requirement: Empty path parameters
+
+The typed `request` SHALL reject a path parameter that is missing or empty (`""`), before any request, with an error that names the endpoint and the parameter. An empty id gives a path to a different endpoint (`DELETE /stockMovements/` instead of `DELETE /stockMovements/{id}`).
+
+#### Scenario: Empty id
+
+- **WHEN** the caller runs `api.request({ method: "get", path: "/stockMovements/{id}", pathParams: { id: "" } })`
+- **THEN** the request rejects with "Missing path parameters for get /stockMovements/{id}: id"
+- **AND** the client sends no request

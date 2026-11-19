@@ -4,7 +4,7 @@ This file is the project OVERVIEW and CONVENTIONS, written for the people who wo
 
 ## What it is
 
-`ob-api` (`@eyeseetea/ob-api`) is a TypeScript library to call the [OpenBoxes](https://openboxes.com/) REST API. It follows the shape of [d2-api](https://github.com/EyeSeeTea/d2-api): the first version is a generic client (`get`, `post`, `put`, `patch`, `delete` on any endpoint), like `D2ApiGeneric`. Typed endpoints (for example `api.products.get(...)`) come later, on top of the generic client.
+`ob-api` (`@eyeseetea/ob-api`) is a TypeScript library to call the [OpenBoxes](https://openboxes.com/) REST API. It follows the shape of [d2-api](https://github.com/EyeSeeTea/d2-api): the first version is a generic client (`get`, `post`, `put`, `patch`, `delete` on any endpoint), like `D2ApiGeneric`. Typed endpoints (for example `api.products.list(...)`) are on top of the generic client.
 
 ## Tech stack
 
@@ -44,7 +44,10 @@ The layout is copied from d2-api so the two libraries stay alike:
 
 ```
 src/
-  api/            The public client (OBApi) and the session (login, retry on 401)
+  api/            The public client (OBApi), the session (login, retry on 401), the endpoint
+                  map (endpoints.ts: method + path → params, body and response codec) and the
+                  resource methods (one file for each resource) with their codecs (purify-ts);
+                  generic.ts groups the resources of the OpenBoxes generic API (api.generic)
   repositories/   Interfaces and types: HttpClientRepository, HttpError, CancelableResponse
   data/           Implementations: FetchHttpClientRepository (keeps the session cookie in Node)
   utils/          Shared utilities: URL and query string building, Set-Cookie parsing, Maybe
@@ -53,6 +56,8 @@ src/
 ```
 
 The client depends on the `HttpClientRepository` interface, not on a specific HTTP library. A request goes `OBApi` (adds `apiPath`, unless the request sets `skipApiPrefix`) → session (logs in when necessary, retries once on `401`) → `HttpClientRepository` (adds `baseUrl`, sends with `fetch`). Requests return a `CancelableResponse`, the same type that d2-api returns, so apps can wrap both libraries the same way.
+
+A typed call adds 2 steps in front: a resource method (for example `api.stockMovements.get`) builds the OpenBoxes params and body → the typed `request` finds the endpoint in the map, builds the path, and checks the response with the endpoint's codec → `requestUntyped` (the path above). The resource method then makes the mechanical changes to the result: dotted keys to nested objects, `null` to `undefined`. Logic that sends several requests (chunks, workflows) does not belong in this layer; it goes in the later SDK layer.
 
 The library must run in Node and in the browser. It uses one `fetch` backend, because `fetch` works in both, as in d2-api. OpenBoxes keeps the login session in a cookie. In Node, the client keeps the cookie from the login response and sends it with each request. In the browser, the browser keeps the cookie (`credentials: "include"`).
 

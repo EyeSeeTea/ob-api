@@ -5,12 +5,14 @@ Rules that belong to **this project**, not to est-ai: they always apply, the rev
 A project rule can:
 
 - **Add a restriction** that est-ai does not have — e.g. "Do not edit `src/api/`: it is generated from the OpenAPI spec; change the spec and regenerate."
-- **Make an explicit exception** to an est-ai rule — e.g. "New repositories in `src/data/legacy-sync/` keep returning `Promise` until the Future refactor (ticket X); `dhis2-react/architecture.md` → *Future, not Promise* does not apply there."
+- **Make an explicit exception** to an est-ai rule — e.g. "New repositories in `src/data/legacy-sync/` keep returning `Promise` until the Future refactor (ticket X); `dhis2-react/architecture.md` → _Future, not Promise_ does not apply there."
 
 When a project rule makes an exception, it names the est-ai rule it overrides and where it applies; the review then does not report that rule there. Remove the exception when its reason is gone.
 
 Write rules as invariants ("must", "never", "no …"), one topic per file (e.g. `generated-code.md`, `async.md`), and link them from here:
 
-| File | Covers |
-|------|--------|
-| [`http-boundary-cast.md`](http-boundary-cast.md) | Exception: the response body cast to `Data` in HTTP client repositories |
+| File                                             | Covers                                                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| [`http-boundary-cast.md`](http-boundary-cast.md) | Exception: the response body cast to `Data` in HTTP client repositories              |
+| [`endpoint-overload.md`](endpoint-overload.md)   | Exception: the overload of `requestEndpoint` that declares the checked response type |
+| [`endpoint-wiki.md`](endpoint-wiki.md)           | Restriction: every endpoint change updates the GitHub wiki                           |

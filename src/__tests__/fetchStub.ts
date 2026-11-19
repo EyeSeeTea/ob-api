@@ -32,6 +32,11 @@ export function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
     return new Response(JSON.stringify(body), { status: 200, headers: JSON_HEADERS, ...init });
 }
 
+/* An answer without a body, as OpenBoxes sends for `render status: 200` and for 204. */
+export function emptyResponse(status = 200): Response {
+    return new Response(null, { status });
+}
+
 export function hangUntilAborted({ init }: FetchCall): Promise<Response> {
     return new Promise((_resolve, reject) => {
         init.signal?.addEventListener("abort", () => reject(init.signal?.reason));

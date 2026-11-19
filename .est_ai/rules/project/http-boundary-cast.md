@@ -1,6 +1,6 @@
 # Response body cast at the HTTP boundary
 
-**Exception to** `lang/typescript.md` → *Casts: upcast yes, downcast no*.
+**Exception to** `lang/typescript.md` → _Casts: upcast yes, downcast no_.
 
 **Where it applies:** only `src/data/*HttpClientRepository.ts`, at the one place that turns the parsed response body into the caller's `Data` type.
 
