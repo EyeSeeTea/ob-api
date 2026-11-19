@@ -2,6 +2,7 @@ import { array, boolean, Codec, exactly, GetType, string } from "purify-ts";
 import { CancelableResponse } from "../repositories/CancelableResponse";
 import { Maybe } from "../utils/ts-utils";
 import type { EndpointApi } from "./endpoints";
+import { OBIdRef } from "./refs";
 import { nullish } from "./responseCheck";
 import { ListResult } from "./results";
 
@@ -41,9 +42,35 @@ export type OBLocation = Readonly<{
 
 export type LocationListParams = Readonly<{ locationTypeCode?: OBLocationTypeCode }>;
 
+/* A type of location that an admin defined, with its OpenBoxes code. */
+export type OBLocationTypeDetail = Readonly<{
+    id: string;
+    name: string;
+    description: Maybe<string>;
+    locationTypeCode: Maybe<OBLocationTypeCode>;
+    supportedActivities: ReadonlyArray<string>;
+}>;
+
+export type LocationInput = Readonly<{
+    name: string;
+    locationType: OBIdRef;
+    locationNumber?: string;
+    /* OpenBoxes requires it for most location types (for example a depot), but not for a bin location. */
+    organization?: OBIdRef;
+    parentLocation?: OBIdRef;
+    active?: boolean;
+    supportedActivities?: ReadonlyArray<string>;
+}>;
+
 export type Locations = Readonly<{
     /* OpenBoxes returns the locations the user can see, without paging. */
     list(params?: LocationListParams): CancelableResponse<ListResult<OBLocation>>;
+    get(id: string): CancelableResponse<OBLocation>;
+    create(location: LocationInput): CancelableResponse<OBLocation>;
+    /* Sends only the given fields. */
+    update(id: string, fields: Partial<LocationInput>): CancelableResponse<OBLocation>;
+    delete(id: string): CancelableResponse<void>;
+    locationTypes(): CancelableResponse<ListResult<OBLocationTypeDetail>>;
 }>;
 
 const locationCodec = Codec.interface({
@@ -61,6 +88,18 @@ const locationCodec = Codec.interface({
 
 export const locationListCodec = Codec.interface({ data: array(locationCodec) });
 
+export const locationDetailCodec = Codec.interface({ data: locationCodec });
+
+const locationTypeDetailCodec = Codec.interface({
+    id: string,
+    name: string,
+    description: nullish(string),
+    locationTypeCode: nullish(exactly(...OB_LOCATION_TYPE_CODES)),
+    supportedActivities: nullish(array(string)),
+});
+
+export const locationTypeListCodec = Codec.interface({ data: array(locationTypeDetailCodec) });
+
 export function createLocations(api: EndpointApi): Locations {
     function list(params: LocationListParams = {}): CancelableResponse<ListResult<OBLocation>> {
         return api
@@ -68,7 +107,37 @@ export function createLocations(api: EndpointApi): Locations {
             .map(({ data }) => ({ objects: data.data.map(toLocation) }));
     }
 
-    return { list };
+    const toLocationResult = ({ data }: { data: GetType<typeof locationDetailCodec> }) =>
+        toLocation(data.data);
+
+    return {
+        list,
+        get: id =>
+            api
+                .request({ method: "get", path: "/locations/{id}", pathParams: { id } })
+                .map(toLocationResult),
+        create: location =>
+            api
+                .request({ method: "post", path: "/locations", data: location })
+                .map(toLocationResult),
+        update: (id, fields) =>
+            api
+                .request({
+                    method: "post",
+                    path: "/locations/{id}",
+                    pathParams: { id },
+                    data: fields,
+                })
+                .map(toLocationResult),
+        delete: id =>
+            api
+                .request({ method: "delete", path: "/locations/{id}", pathParams: { id } })
+                .map(() => undefined),
+        locationTypes: () =>
+            api
+                .request({ method: "get", path: "/locations/locationTypes" })
+                .map(({ data }) => ({ objects: data.data.map(toLocationTypeDetail) })),
+    };
 }
 
 function toLocation(location: GetType<typeof locationCodec>): OBLocation {
@@ -86,5 +155,15 @@ function toLocation(location: GetType<typeof locationCodec>): OBLocation {
         parentLocation: parentLocation
             ? { id: parentLocation.id, name: parentLocation.name }
             : undefined,
+    };
+}
+
+function toLocationTypeDetail(type: GetType<typeof locationTypeDetailCodec>): OBLocationTypeDetail {
+    return {
+        id: type.id,
+        name: type.name,
+        description: type.description ?? undefined,
+        locationTypeCode: type.locationTypeCode ?? undefined,
+        supportedActivities: type.supportedActivities ?? [],
     };
 }

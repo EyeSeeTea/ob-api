@@ -199,3 +199,55 @@ export function partialReceiptBody(
         ...overrides,
     };
 }
+
+export function stockTransferItemBody(
+    overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+    return {
+        id: "sti-1",
+        productAvailabilityId: "pa-1",
+        "product.id": "p1",
+        "product.productCode": "AMOX500",
+        "product.name": "Amoxicillin 500mg",
+        "product.displayName": "Amoxicillin 500mg",
+        "inventoryItem.id": "ii-1",
+        lotNumber: "LOT-1",
+        expirationDate: "05/27/2027",
+        "originBinLocation.id": "bin-1",
+        "originBinLocation.name": "A1",
+        "destinationBinLocation.id": "bin-2",
+        "destinationBinLocation.name": null,
+        quantity: 4,
+        quantityOnHand: 10,
+        quantityNotPicked: 0,
+        status: "PENDING",
+        ...overrides,
+    };
+}
+
+export function stockTransferBody(
+    overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+    return {
+        id: "st-1",
+        description: null,
+        stockTransferNumber: "ST-1",
+        status: "PENDING",
+        dateCreated: "June 24, 2026",
+        "origin.id": "loc-1",
+        "origin.name": "Central depot",
+        "destination.id": "loc-1",
+        "destination.name": "Central depot",
+        stockTransferItems: [stockTransferItemBody()],
+        orderedBy: "Ana Admin",
+        type: "TRANSFER_ORDER",
+        dateShipped: "",
+        expectedDeliveryDate: "",
+        shipmentType: "",
+        trackingNumber: "",
+        driverName: "",
+        comments: "",
+        documents: "",
+        ...overrides,
+    };
+}

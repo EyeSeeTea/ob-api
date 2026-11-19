@@ -27,3 +27,13 @@ A typed endpoint that OpenBoxes answers with an empty body (status `200` or `204
 
 - **WHEN** OpenBoxes answers a `DELETE` with status `204` and no body
 - **THEN** the request resolves with no value
+
+### Requirement: Empty path parameters
+
+The typed `request` SHALL reject a path parameter that is missing or empty (`""`), before any request, with an error that names the endpoint and the parameter. An empty id gives a path to a different endpoint (`DELETE /stockMovements/` instead of `DELETE /stockMovements/{id}`).
+
+#### Scenario: Empty id
+
+- **WHEN** the caller runs `api.request({ method: "get", path: "/stockMovements/{id}", pathParams: { id: "" } })`
+- **THEN** the request rejects with "Missing path parameters for get /stockMovements/{id}: id"
+- **AND** the client sends no request

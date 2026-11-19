@@ -63,9 +63,43 @@ export type AvailableItemsQuery = Readonly<{
     "product.id": ReadonlyArray<string>;
 }>;
 
+export type ProductInput = Readonly<{
+    name: string;
+    category: OBIdRef;
+    /* OpenBoxes rejects a product without a type. A new server has one: `{ id: "DEFAULT" }`. */
+    productType: OBIdRef;
+    /* OpenBoxes generates the code when it is absent. */
+    productCode?: string;
+    description?: string;
+    unitOfMeasure?: string;
+    lotAndExpiryControl?: boolean;
+    active?: boolean;
+}>;
+
+export type OBCreatedProduct = Readonly<{ id: string; productCode: string; name: string }>;
+
+/* A product as the generic API sends it: `category` is the category name. */
+export type OBGenericProduct = OBCreatedProduct &
+    Readonly<{
+        description: Maybe<string>;
+        category: Maybe<string>;
+        unitOfMeasure: Maybe<string>;
+        lotAndExpiryControl: Maybe<boolean>;
+        active: Maybe<boolean>;
+    }>;
+
+/* `/products` has no update or delete: they exist only in the generic API. */
+export type GenericProducts = Readonly<{
+    get(id: string): CancelableResponse<OBGenericProduct>;
+    /* Sends only the given fields. */
+    update(id: string, fields: Partial<ProductInput>): CancelableResponse<OBGenericProduct>;
+    delete(id: string): CancelableResponse<void>;
+}>;
+
 export type Products = Readonly<{
     list(params?: ProductListParams): CancelableResponse<Paginated<OBProduct>>;
     availableItems(params: AvailableItemsParams): CancelableResponse<ListResult<OBAvailableItem>>;
+    create(product: ProductInput): CancelableResponse<OBCreatedProduct>;
 }>;
 
 const productCodec = Codec.interface({
@@ -99,6 +133,24 @@ const availableItemCodec = Codec.interface({
 
 export const availableItemListCodec = Codec.interface({ data: array(availableItemCodec) });
 
+const createdProductCodec = Codec.interface({ id: string, productCode: string, name: string });
+
+/* ProductApiController.save answers `{ product }`, not `{ data }`. */
+export const productCreatedCodec = Codec.interface({ product: createdProductCodec });
+
+const genericProductCodec = Codec.interface({
+    id: string,
+    productCode: string,
+    name: string,
+    description: nullish(string),
+    category: nullish(string),
+    unitOfMeasure: nullish(string),
+    lotAndExpiryControl: nullish(boolean),
+    active: nullish(boolean),
+});
+
+export const genericProductResponseCodec = Codec.interface({ data: genericProductCodec });
+
 export function createProducts(api: EndpointApi): Products {
     function list(params: ProductListParams = {}): CancelableResponse<Paginated<OBProduct>> {
         return api
@@ -121,7 +173,42 @@ export function createProducts(api: EndpointApi): Products {
             .map(({ data }) => ({ objects: data.data.map(toAvailableItem) }));
     }
 
-    return { list, availableItems };
+    function create(product: ProductInput): CancelableResponse<OBCreatedProduct> {
+        return api
+            .request({ method: "post", path: "/products", data: product })
+            .map(({ data }) => ({
+                id: data.product.id,
+                productCode: data.product.productCode,
+                name: data.product.name,
+            }));
+    }
+
+    return { list, availableItems, create };
+}
+
+export function createGenericProducts(api: EndpointApi): GenericProducts {
+    const toResult = ({ data }: { data: GetType<typeof genericProductResponseCodec> }) =>
+        toGenericProduct(data.data);
+
+    return {
+        get: id =>
+            api
+                .request({ method: "get", path: "/generic/product/{id}", pathParams: { id } })
+                .map(toResult),
+        update: (id, fields) =>
+            api
+                .request({
+                    method: "put",
+                    path: "/generic/product/{id}",
+                    pathParams: { id },
+                    data: fields,
+                })
+                .map(toResult),
+        delete: id =>
+            api
+                .request({ method: "delete", path: "/generic/product/{id}", pathParams: { id } })
+                .map(() => undefined),
+    };
 }
 
 function toProduct(product: GetType<typeof productCodec>): OBProduct {
@@ -154,5 +241,18 @@ function toAvailableItem(item: GetType<typeof availableItemCodec>): OBAvailableI
         quantityAvailable: item.quantityAvailable,
         quantityOnHand: item.quantityOnHand,
         status: item.status,
+    };
+}
+
+function toGenericProduct(product: GetType<typeof genericProductCodec>): OBGenericProduct {
+    return {
+        id: product.id,
+        productCode: product.productCode,
+        name: product.name,
+        description: product.description ?? undefined,
+        category: product.category ?? undefined,
+        unitOfMeasure: product.unitOfMeasure ?? undefined,
+        lotAndExpiryControl: product.lotAndExpiryControl ?? undefined,
+        active: product.active ?? undefined,
     };
 }

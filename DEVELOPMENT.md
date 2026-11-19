@@ -46,7 +46,8 @@ The layout is copied from d2-api so the two libraries stay alike:
 src/
   api/            The public client (OBApi), the session (login, retry on 401), the endpoint
                   map (endpoints.ts: method + path → params, body and response codec) and the
-                  resource methods (one file for each resource) with their codecs (purify-ts)
+                  resource methods (one file for each resource) with their codecs (purify-ts);
+                  generic.ts groups the resources of the OpenBoxes generic API (api.generic)
   repositories/   Interfaces and types: HttpClientRepository, HttpError, CancelableResponse
   data/           Implementations: FetchHttpClientRepository (keeps the session cookie in Node)
   utils/          Shared utilities: URL and query string building, Set-Cookie parsing, Maybe

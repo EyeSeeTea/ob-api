@@ -25,7 +25,7 @@ describe("people.search", () => {
         );
 
         const result = await api()
-            .people.search({
+            .generic.people.search({
                 searchAttributes: [
                     { property: "email", operator: "ilike", value: "nurse@example.org" },
                 ],
@@ -49,7 +49,7 @@ describe("people.search", () => {
         stubServer(() => jsonResponse({ data: [] }));
 
         const result = await api()
-            .people.search({
+            .generic.people.search({
                 searchAttributes: [
                     { property: "email", operator: "eq", value: "nobody@example.org" },
                 ],
@@ -64,7 +64,7 @@ describe("people.search", () => {
 
         await expect(
             api()
-                .people.search({
+                .generic.people.search({
                     searchAttributes: [
                         { property: "email", operator: "eq", value: "" },
                         { property: "", operator: "eq", value: "x" },

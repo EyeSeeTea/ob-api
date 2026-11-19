@@ -15,16 +15,25 @@ Typed access to the OpenBoxes purchase orders: list, read, delete and roll back 
 
 ### Requirement: Read, delete and roll back a purchase order
 
-`api.purchaseOrders.get(id)` SHALL request `GET <apiPath>/purchaseOrders/{id}` and return the order of the response `data` (`id`, `orderNumber`, `name`, `status`). `api.purchaseOrders.delete(id)` SHALL send `DELETE <apiPath>/purchaseOrders/{id}`, and `api.purchaseOrders.rollback(id)` SHALL send `POST <apiPath>/purchaseOrders/{id}/rollback`; both SHALL resolve with no value. OpenBoxes refuses with status `400` to delete an order that is not `PENDING`.
+`api.purchaseOrders.get(id)` SHALL request `GET <apiPath>/purchaseOrders/{id}` and return the order of the response `data`. `api.purchaseOrders.delete(id)` SHALL send `DELETE <apiPath>/purchaseOrders/{id}`, and `api.purchaseOrders.rollback(id)` SHALL send `POST <apiPath>/purchaseOrders/{id}/rollback`; both SHALL resolve with no value. OpenBoxes refuses with status `400` to delete an order that is not `PENDING`.
 
 #### Scenario: Delete a placed order
 
 - **WHEN** OpenBoxes answers the delete with status `400` and `{ errorMessages: [...] }`
 - **THEN** the request rejects with an HTTP error that keeps the response
 
+### Requirement: Purchase order detail fields
+
+The order of `get` and `generic.orders.create` SHALL have `id`, `name` and `status` (`{ name }`, the OrderStatus enum as OpenBoxes sends it), and MAY have `orderNumber`.
+
+#### Scenario: Order status
+
+- **WHEN** OpenBoxes answers `status: { enumType: "org.pih.warehouse.order.OrderStatus", name: "PENDING" }`
+- **THEN** the result order has `status: { name: "PENDING" }`
+
 ### Requirement: Create a purchase order through the generic API
 
-`api.generic.orders.create(order)` SHALL send `POST <apiPath>/generic/order` and return the order of the response `data`. The input has `name`, `orderType`, `origin`, `destination` and `orderedBy` (`{ id }`), and MAY have `orderNumber`, `dateOrdered` (a `Date`) and `status`. OpenBoxes requires an `origin` and a `destination` that have an organization.
+`api.generic.orders.create(order)` SHALL send `POST <apiPath>/generic/order` and return the order of the response `data`. The input has `name`, `orderType`, `origin`, `destination` and `orderedBy` (`{ id }`), and MAY have `orderNumber`, `dateOrdered` (a `Date`) and `status`. OpenBoxes requires an `origin` and a `destination` that have an organization. The answer of the create has no `orderNumber`, because OpenBoxes gives the number later; the result has `orderNumber` `undefined`.
 
 #### Scenario: New purchase order
 

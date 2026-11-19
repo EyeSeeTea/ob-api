@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { httpErrorOf, jsonResponse } from "../../__tests__/fetchStub";
+import { bodyOf, emptyResponse, httpErrorOf, jsonResponse } from "../../__tests__/fetchStub";
 import { locationBody } from "./endpointFixtures";
-import { API_URL, stubServer, testApi as api } from "./endpointServer";
+import { API_URL, requestsAfterLogin, stubServer, testApi as api } from "./endpointServer";
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -67,5 +67,110 @@ describe("locations.list", () => {
 
         expect(location?.locationNumber).toBeUndefined();
         expect(location?.parentLocation).toEqual({ id: "parent-1", name: "Region" });
+    });
+});
+
+describe("locations.get, create, update and delete", () => {
+    it("reads one location with the fields of the list", async () => {
+        const calls = stubServer(() => jsonResponse({ data: locationBody() }));
+
+        const location = await api().locations.get("loc-1").getData();
+
+        expect(requestsAfterLogin(calls()).map(call => call.url)).toEqual([
+            `${API_URL}/locations/loc-1`,
+        ]);
+        expect(location.locationType.locationTypeCode).toEqual("DEPOT");
+    });
+
+    it("posts a new depot and returns it with its new id", async () => {
+        const calls = stubServer(() =>
+            jsonResponse({ data: locationBody({ id: "loc-9", name: "District depot" }) })
+        );
+
+        const location = await api()
+            .locations.create({ name: "District depot", locationType: { id: "lt-depot" } })
+            .getData();
+
+        const [create] = requestsAfterLogin(calls());
+        expect(create?.url).toEqual(`${API_URL}/locations`);
+        expect(create?.init.method).toEqual("POST");
+        expect(bodyOf(create)).toEqual({
+            name: "District depot",
+            locationType: { id: "lt-depot" },
+        });
+        expect(location.id).toEqual("loc-9");
+    });
+
+    it("posts only the given fields of an update", async () => {
+        const calls = stubServer(() => jsonResponse({ data: locationBody({ active: false }) }));
+
+        const location = await api().locations.update("loc-1", { active: false }).getData();
+
+        const [update] = requestsAfterLogin(calls());
+        expect(update?.url).toEqual(`${API_URL}/locations/loc-1`);
+        expect(update?.init.method).toEqual("POST");
+        expect(bodyOf(update)).toEqual({ active: false });
+        expect(location.active).toBe(false);
+    });
+
+    it("deletes a location and resolves with no value", async () => {
+        const calls = stubServer(() => emptyResponse(204));
+
+        const result = await api().locations.delete("loc-1").getData();
+
+        expect(requestsAfterLogin(calls()).map(call => call.init.method)).toEqual(["DELETE"]);
+        expect(result).toBeUndefined();
+    });
+
+    it("rejects with the response when OpenBoxes refuses the delete", async () => {
+        const answer = {
+            errorMessage: "You cannot delete zone that is assigned to a bin location",
+        };
+        stubServer(() => jsonResponse(answer, { status: 500 }));
+
+        const error = await httpErrorOf(api().locations.delete("zone-1").getData());
+
+        expect(error.response?.data).toEqual(answer);
+    });
+});
+
+describe("locations.locationTypes", () => {
+    it("requests the location types and gives defaults for absent fields", async () => {
+        const calls = stubServer(() =>
+            jsonResponse({
+                data: [
+                    {
+                        id: "lt-depot",
+                        name: "Depot",
+                        description: null,
+                        locationTypeCode: "DEPOT",
+                        supportedActivities: ["MANAGE_INVENTORY"],
+                    },
+                    { id: "lt-x", name: "Custom", description: null, locationTypeCode: null },
+                ],
+            })
+        );
+
+        const result = await api().locations.locationTypes().getData();
+
+        expect(requestsAfterLogin(calls()).map(call => call.url)).toEqual([
+            `${API_URL}/locations/locationTypes`,
+        ]);
+        expect(result.objects).toEqual([
+            {
+                id: "lt-depot",
+                name: "Depot",
+                description: undefined,
+                locationTypeCode: "DEPOT",
+                supportedActivities: ["MANAGE_INVENTORY"],
+            },
+            {
+                id: "lt-x",
+                name: "Custom",
+                description: undefined,
+                locationTypeCode: undefined,
+                supportedActivities: [],
+            },
+        ]);
     });
 });

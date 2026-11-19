@@ -10,6 +10,11 @@
 - **THEN** the client sends that body with `dateRequested: "06/24/2026"` to `…/openboxes/api/stockMovements`
 - **AND** the result has the `id` from the response `data`
 
+#### Scenario: New movement without a shipment
+
+- **WHEN** OpenBoxes answers the create with `associations.shipment: { id: null }`, because it creates the shipment later
+- **THEN** the result has `associations.shipment` `undefined`
+
 ### Requirement: Update the items of a stock movement
 
 `api.stockMovements.updateItems(id, { lineItems, removeEmptyItems? })` SHALL send `POST <apiPath>/stockMovements/{id}/updateItems` with `{ id, lineItems, removeEmptyItems }` and return the updated movement. Each line item has `product` (`{ id }`) and `quantityRequested`, and MAY have `id`, `lotNumber`, `expirationDate`, `recipient` (`{ id }`) and `sortOrder`.
@@ -21,7 +26,7 @@
 
 ### Requirement: Update the requisition and the shipment of a stock movement
 
-`api.stockMovements.updateRequisition(id, fields)` SHALL send `POST <apiPath>/stockMovements/{id}/updateRequisition` and return the movement. `api.stockMovements.updateShipment(id, fields)` SHALL send `POST <apiPath>/stockMovements/{id}/updateShipment` and resolve with no value. The shipment fields MAY have `destination` and `shipmentType` (`{ id }`), `dateShipped` (a `Date`, sent as `MM/dd/yyyy HH:mm Z` in UTC), `expectedDeliveryDate`, `trackingNumber`, `driverName` and `comments`.
+`api.stockMovements.updateRequisition(id, fields)` SHALL send `POST <apiPath>/stockMovements/{id}/updateRequisition` and return the movement. `api.stockMovements.updateShipment(id, fields)` SHALL send `POST <apiPath>/stockMovements/{id}/updateShipment` and resolve with no value. The shipment fields MAY have `destination` and `shipmentType` (`{ id }`), `dateShipped` and `expectedDeliveryDate` (`Date` values, sent as `MM/dd/yyyy HH:mm Z` in UTC), `trackingNumber`, `driverName` and `comments`.
 
 #### Scenario: Shipment details
 

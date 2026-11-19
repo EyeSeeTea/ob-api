@@ -21,7 +21,7 @@ describe("transactionTypes.list", () => {
     it("requests the generic TransactionType list and keeps the code name nested", async () => {
         const calls = stubServer(() => jsonResponse({ data: [transactionTypeBody()] }));
 
-        const result = await api().transactionTypes.list().getData();
+        const result = await api().generic.transactionTypes.list().getData();
 
         expect(requestsAfterLogin(calls()).map(call => call.url)).toEqual([
             `${API_URL}/generic/TransactionType`,
@@ -36,7 +36,7 @@ describe("transactionTypes.list", () => {
             jsonResponse({ data: [transactionTypeBody({ transactionCode: { name: "GIFT" } })] })
         );
 
-        const error = await httpErrorOf(api().transactionTypes.list().getData());
+        const error = await httpErrorOf(api().generic.transactionTypes.list().getData());
 
         expect(error.message).toMatch(/unexpected response.*transactionCode/);
     });
@@ -59,7 +59,7 @@ describe("inventories.list", () => {
             })
         );
 
-        const result = await api().inventories.list().getData();
+        const result = await api().generic.inventories.list().getData();
 
         expect(requestsAfterLogin(calls()).map(call => call.url)).toEqual([
             `${API_URL}/generic/inventory`,
@@ -80,7 +80,7 @@ describe("transactions.create", () => {
         );
 
         const result = await api()
-            .transactions.create({
+            .generic.transactions.create({
                 transactionType: { id: "tt-1" },
                 inventory: { id: "inv-1" },
                 transactionDate: new Date("2026-06-24T06:40:00Z"),
@@ -112,7 +112,7 @@ describe("transactions.create", () => {
         const calls = stubServer(() => jsonResponse({ data: { id: "tx-1" } }, { status: 201 }));
 
         await api()
-            .transactions.create({
+            .generic.transactions.create({
                 transactionType: { id: "tt-1" },
                 inventory: { id: "inv-1" },
                 transactionDate: new Date("2026-06-24T06:40:00Z"),

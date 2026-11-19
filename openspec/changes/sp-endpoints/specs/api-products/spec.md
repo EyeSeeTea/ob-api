@@ -2,11 +2,11 @@
 
 ### Requirement: Create a product
 
-`api.products.create(product)` SHALL send `POST <apiPath>/products` and return the saved product (`id`, `productCode`, `name`). The input has `name` and `category` (`{ id }`), and MAY have `productCode`, `description`, `productType` (`{ id }`), `unitOfMeasure`, `lotAndExpiryControl` and `active`. OpenBoxes answers `{ product }`, not `{ data }`. When `productCode` is absent, OpenBoxes generates it.
+`api.products.create(product)` SHALL send `POST <apiPath>/products` and return the saved product (`id`, `productCode`, `name`). The input has `name`, `category` and `productType` (`{ id }`), because OpenBoxes rejects a product without a type, and MAY have `productCode`, `description`, `unitOfMeasure`, `lotAndExpiryControl` and `active`. OpenBoxes answers `{ product }`, not `{ data }`. When `productCode` is absent, OpenBoxes generates it.
 
 #### Scenario: New product
 
-- **WHEN** the caller creates `{ name: "Gloves", category: { id: "cat-1" } }` and OpenBoxes answers `{ product: { id: "p9", productCode: "GLV01", name: "Gloves" } }`
+- **WHEN** the caller creates `{ name: "Gloves", category: { id: "cat-1" }, productType: { id: "DEFAULT" } }` and OpenBoxes answers `{ product: { id: "p9", productCode: "GLV01", name: "Gloves" } }`
 - **THEN** the client sends that body to `…/openboxes/api/products`
 - **AND** the result has `{ id: "p9", productCode: "GLV01", name: "Gloves" }`
 

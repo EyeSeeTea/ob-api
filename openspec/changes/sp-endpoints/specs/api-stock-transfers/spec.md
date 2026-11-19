@@ -6,17 +6,18 @@ Typed access to the OpenBoxes stock transfers (stock moved between bin locations
 
 ### Requirement: List stock transfers
 
-`api.stockTransfers.list(params)` SHALL request `GET <apiPath>/stockTransfers` and return `{ objects, total }`. `params` SHALL have `location` (the location id), because OpenBoxes answers `400` without it, and MAY have `max` and `offset`.
+`api.stockTransfers.list(params)` SHALL request `GET <apiPath>/stockTransfers` and return `{ objects, total }`. `params` SHALL have `location` (the location id), because OpenBoxes answers `400` without it, and MAY have `max` and `offset`. Each object SHALL be a summary (`Order.toJson`): `id`, `orderNumber`, `name`, `status` and `orderItemsCount`, and MAY have `origin`, `destination` and `createdBy` (names) and `dateCreated`.
 
 #### Scenario: Transfers of a location
 
 - **WHEN** the caller runs `api.stockTransfers.list({ location: "loc-1", max: 10 })`
 - **THEN** the client requests `…/openboxes/api/stockTransfers?location=loc-1&max=10`
 - **AND** the result has `total` from `totalCount`
+- **AND** each object has `origin` and `destination` as location names, without an `id`
 
 ### Requirement: Stock transfer fields
 
-A stock transfer SHALL have `id`, `stockTransferNumber`, `status` and `stockTransferItems`, and MAY have `description`, `origin` and `destination` (`id`, `name`, from the dotted keys), `type`, `dateCreated`, `dateShipped` and `orderedBy`. OpenBoxes sends `""` for some absent strings (`dateShipped`, `trackingNumber`); the client SHALL give `undefined` for them.
+A stock transfer of `get`, `create` and `update` SHALL have `id`, `stockTransferNumber`, `status` and `stockTransferItems`, and MAY have `description`, `origin` and `destination` (`id`, `name`, from the dotted keys), `type`, `dateCreated`, `dateShipped` and `orderedBy`. OpenBoxes sends `""` for some absent strings (`dateShipped`, `trackingNumber`); the client SHALL give `undefined` for them.
 
 #### Scenario: Transfer without a shipment date
 
@@ -45,7 +46,17 @@ Each item SHALL have `id`, `product` (`id`, `productCode`, `name`) and `quantity
 #### Scenario: Complete a transfer
 
 - **WHEN** the caller updates a transfer with `status: "COMPLETED"`
-- **THEN** the client sends `PUT …/stockTransfers/{id}`, and OpenBoxes completes the transfer
+- **THEN** the client sends `PUT …/stockTransfers/{id}` with `id` and `status` in the body, and OpenBoxes completes the transfer
+
+### Requirement: Transfer id in the update body
+
+`api.stockTransfers.update(id, transfer)` SHALL send the `id` in the body too, because OpenBoxes reads the transfer id from the body and creates a new transfer without it.
+
+#### Scenario: Update keeps the transfer
+
+- **WHEN** the caller runs `api.stockTransfers.update("st-1", { description: "Edited" })`
+- **THEN** the client sends `{ description: "Edited", id: "st-1" }`
+- **AND** OpenBoxes updates `st-1`, and creates no new transfer
 
 ### Requirement: Stock transfer input
 

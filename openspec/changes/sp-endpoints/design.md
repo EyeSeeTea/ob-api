@@ -66,13 +66,13 @@ OpenBoxes maps `createPickList` and `validatePicklist` to `GET`. The endpoint ma
 
 ### 7. Live checks
 
-Each new write endpoint gets one live check on the test server as `obapi-test` (Manager at `ob-api test`), with the session location set. The checks create their own data (a category, a product, a location, a transfer, an adjustment, an inbound movement, a purchase order), and the delete checks remove it again where OpenBoxes allows it. The results go in `.local/write-test-data.md`.
+Each new write endpoint gets one live check on the test server as `obapi-test` (Manager at `ob-api test`), with the session location set. The checks create their own data (a category, a product, a location, a transfer, an inbound movement, a purchase order), and the delete checks remove it again where OpenBoxes allows it. The results go in `.local/write-test-data.md`.
 
 ## Risks / Trade-offs
 
 - [The SP server runs a different OpenBoxes version] → The shapes come from 0.9.7. The codecs fail with an `HttpError` that names the field, so a difference shows on the first call. The version detection of the SDK layer handles it later.
 - [The generic API binds any field of the domain class (`domainObject.properties = jsonObject`)] → The input types allow only the fields of the specs, so a typed call cannot set other fields by mistake. `requestUntyped` stays available for other fields.
-- [`PUT /categories/{id}` binds `params`, not the JSON body (`CategoryApiController.save`)] → With `parseRequest: true`, Grails puts the JSON fields in `params`. The live check confirms it. If it fails, the update sends the fields as query parameters, and the spec scenario changes.
+- [`PUT /categories/{id}` binds `params`, not the JSON body (`CategoryApiController.save`)] → The live check showed that OpenBoxes ignores the JSON body. The update sends the fields as query parameters.
 - [The generic create of an `Order` needs an origin and a destination with an organization] → The spec says so. The live check uses the supplier of the test data, which has an organization.
 - [About 38 new endpoint keys make `endpoints.ts` long] → The map stays one table, grouped by resource with a comment line for each group. The codecs stay in the resource files.
 
@@ -86,5 +86,17 @@ Rollback: revert the commits of this change on `feature/typed-endpoints`.
 
 ## Open Questions
 
-- Does `POST /stockAdjustments` answer the adjustments with an `id`? The marshalled `StockAdjustment` is not a domain class. The live check decides which fields the codec checks; the spec needs only `{ objects }`.
-- Does `DELETE /generic/product/{id}` work for a product that has stock or transactions? The live check uses a new product without stock.
+Both questions were answered by the live checks on 2026-11-19 (results in `.local/write-test-data.md`):
+
+- `POST /stockAdjustments` answers `500` on OpenBoxes 0.9.7 up to `develop`: the controller sets `AdjustStockCommand.quantity`, a field that does not exist (the field is `newQuantity`). Decision (2026-11-19): ob-api does not type this endpoint until OpenBoxes fixes it. The method and the `api-stock-adjustments` capability are removed from this change.
+- `DELETE /generic/product/{id}` deletes a product without links (`204`). While a product supplier or another record points to the product, OpenBoxes answers `500` ("existing association").
+
+## Live findings that changed the plan
+
+- `GET /stockTransfers` answers summaries (`Order.toJson(TRANSFER_ORDER)`), not the full transfer.
+- `PUT /stockTransfers/{id}` reads the id from the body. Without it, OpenBoxes creates a new transfer.
+- The create answer of a stock movement has `associations.shipment: { id: null }`.
+- The order of `GET /purchaseOrders/{id}` and of the generic create has `status` as an enum object, and the create answer has `orderNumber: null`.
+- `POST /products` needs `productType`, and `POST /locations` needs `organization` for a depot.
+- `DELETE /locations/{id}` deletes the location and then answers `404` (also through the generic API). ob-api does not hide the status.
+- The typed `request` now rejects an empty path parameter (`""`) before the request, as it does for a missing one. An empty id sent `DELETE /stockMovements/` before, which OpenBoxes answers with `500`.

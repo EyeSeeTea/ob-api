@@ -9,25 +9,21 @@ import {
 } from "../repositories/HttpClientRepository";
 import { joinPath } from "../utils/connection";
 import {
-    createInventories,
-    createTransactions,
-    createTransactionTypes,
-    Inventories,
-    Transactions,
-    TransactionTypes,
-} from "./inventoryTransactions";
-import {
     OBEndpointPath,
     OBEndpointRequest,
     OBEndpointResponse,
     requestEndpoint,
 } from "./endpoints";
+import { Categories, createCategories } from "./categories";
+import { createGeneric, Generic } from "./generic";
 import { createLocations, Locations } from "./locations";
 import { createPartialReceipts, PartialReceipts } from "./partialReceipts";
-import { createPeople, People } from "./people";
+import { createProductPackages, ProductPackages } from "./productPackages";
 import { createProducts, Products } from "./products";
+import { createPurchaseOrders, PurchaseOrders } from "./purchaseOrders";
 import { createSession, Session } from "./session";
 import { createStockMovements, StockMovements } from "./stockMovements";
+import { createStockTransfers, StockTransfers } from "./stockTransfers";
 
 export type OBApiOptions = Readonly<{
     baseUrl: string;
@@ -50,13 +46,14 @@ export class OBApi {
     readonly baseUrl: string;
     readonly apiPath: string;
     readonly products: Products;
+    readonly productPackages: ProductPackages;
     readonly locations: Locations;
+    readonly categories: Categories;
     readonly stockMovements: StockMovements;
     readonly partialReceipts: PartialReceipts;
-    readonly transactionTypes: TransactionTypes;
-    readonly inventories: Inventories;
-    readonly transactions: Transactions;
-    readonly people: People;
+    readonly stockTransfers: StockTransfers;
+    readonly purchaseOrders: PurchaseOrders;
+    readonly generic: Generic;
     private readonly session: Session;
 
     constructor(options: OBApiOptions) {
@@ -74,13 +71,14 @@ export class OBApi {
             chooseLocationUrl: joinPath(apiPath, "chooseLocation"),
         });
         this.products = createProducts(this);
+        this.productPackages = createProductPackages(this);
         this.locations = createLocations(this);
+        this.categories = createCategories(this);
         this.stockMovements = createStockMovements(this);
         this.partialReceipts = createPartialReceipts(this);
-        this.transactionTypes = createTransactionTypes(this);
-        this.inventories = createInventories(this);
-        this.transactions = createTransactions(this);
-        this.people = createPeople(this);
+        this.stockTransfers = createStockTransfers(this);
+        this.purchaseOrders = createPurchaseOrders(this);
+        this.generic = createGeneric(this);
     }
 
     /* Logs in again, even with a valid session. A given location is also used by later logins. */

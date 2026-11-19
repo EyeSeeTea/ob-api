@@ -6,6 +6,7 @@ import { Maybe } from "../utils/ts-utils";
 import type { OBApi } from "./OBApi";
 import type { EndpointApi } from "./endpoints";
 import { OBIdRef } from "./refs";
+import { formatOptionalDate, toOpenBoxesDate, toOpenBoxesDateTime } from "./openboxesDates";
 import { nullish } from "./responseCheck";
 import { Paginated } from "./results";
 
@@ -76,9 +77,101 @@ export type StockMovementListParams = Readonly<{
         | Readonly<{ origin?: string; destination: string }>
     );
 
+/* RequisitionStatus: the statuses that `updateStatus` accepts. */
+export const OB_REQUISITION_STATUSES = [
+    "CREATED",
+    "EDITING",
+    "PENDING_APPROVAL",
+    "APPROVED",
+    "REJECTED",
+    "VERIFYING",
+    "PICKING",
+    "PICKED",
+    "PENDING",
+    "CHECKING",
+    "ISSUED",
+    "RECEIVED",
+    "CANCELED",
+    "DELETED",
+    "ERROR",
+    "DISPATCHED",
+    "REQUESTED",
+] as const;
+
+export type OBRequisitionStatus = (typeof OB_REQUISITION_STATUSES)[number];
+
+/* A stock request is a stock movement with a requisition: OpenBoxes has no separate stock request API. */
+export type StockMovementInput = Readonly<{
+    origin: OBIdRef;
+    destination: OBIdRef;
+    requestedBy: OBIdRef;
+    dateRequested: Date;
+    description?: string;
+    stocklist?: OBIdRef;
+}>;
+
+export type StockMovementBody = Omit<StockMovementInput, "dateRequested"> &
+    Readonly<{ dateRequested: string }>;
+
+export type StockMovementRequisitionBody = Partial<StockMovementBody>;
+
+export type StockMovementLineItemInput = Readonly<{
+    id?: string;
+    product: OBIdRef;
+    quantityRequested: number;
+    lotNumber?: string;
+    /* MM/dd/yyyy, as OpenBoxes sends it. */
+    expirationDate?: string;
+    recipient?: OBIdRef;
+    sortOrder?: number;
+}>;
+
+export type StockMovementItemsInput = Readonly<{
+    lineItems: ReadonlyArray<StockMovementLineItemInput>;
+    removeEmptyItems?: boolean;
+}>;
+
+export type StockMovementItemsBody = StockMovementItemsInput & Readonly<{ id: string }>;
+
+export type StockMovementShipmentInput = Readonly<{
+    destination?: OBIdRef;
+    shipmentType?: OBIdRef;
+    dateShipped?: Date;
+    expectedDeliveryDate?: Date;
+    trackingNumber?: string;
+    driverName?: string;
+    comments?: string;
+}>;
+
+export type StockMovementShipmentBody = Omit<
+    StockMovementShipmentInput,
+    "dateShipped" | "expectedDeliveryDate"
+> &
+    Readonly<{ dateShipped?: string; expectedDeliveryDate?: string }>;
+
+export type StockMovementStatusBody = Readonly<{
+    status: OBRequisitionStatus;
+    rollback?: boolean;
+    statusOnly?: boolean;
+    clearPicklist?: boolean;
+}>;
+
 export type StockMovements = Readonly<{
     list(params: StockMovementListParams): CancelableResponse<Paginated<OBStockMovementSummary>>;
     get(id: string): CancelableResponse<OBStockMovement>;
+    create(movement: StockMovementInput): CancelableResponse<OBStockMovement>;
+    updateItems(id: string, items: StockMovementItemsInput): CancelableResponse<OBStockMovement>;
+    updateRequisition(
+        id: string,
+        fields: Partial<StockMovementInput>
+    ): CancelableResponse<OBStockMovement>;
+    updateShipment(id: string, fields: StockMovementShipmentInput): CancelableResponse<void>;
+    updateStatus(id: string, body: StockMovementStatusBody): CancelableResponse<void>;
+    /* OpenBoxes maps it to GET, but it creates the picklist. */
+    createPicklist(id: string): CancelableResponse<void>;
+    /* OpenBoxes maps it to GET, but it changes the picklist. */
+    validatePicklist(id: string): CancelableResponse<void>;
+    delete(id: string): CancelableResponse<void>;
     uploadDocument(id: string, file: Blob, fileName: string): CancelableResponse<void>;
     /* Only for a URI on the OpenBoxes server, so the session cookie goes nowhere else. */
     downloadDocument(uri: string): CancelableResponse<Blob>;
@@ -120,7 +213,8 @@ const stockMovementCodec = Codec.interface({
     lastUpdated: nullish(string),
     associations: nullish(
         Codec.interface({
-            shipment: nullish(Codec.interface({ id: string })),
+            /* A new movement has `{ id: null }`: OpenBoxes creates the shipment later. */
+            shipment: nullish(Codec.interface({ id: nullish(string) })),
             documents: nullish(array(documentCodec)),
         })
     ),
@@ -147,6 +241,104 @@ export function createStockMovements(api: StockMovementApi): StockMovements {
         return api
             .request({ method: "get", path: "/stockMovements/{id}", pathParams: { id } })
             .map(({ data }) => toStockMovement(data.data));
+    }
+
+    function create(movement: StockMovementInput): CancelableResponse<OBStockMovement> {
+        return api
+            .request({ method: "post", path: "/stockMovements", data: toMovementBody(movement) })
+            .map(({ data }) => toStockMovement(data.data));
+    }
+
+    function updateItems(
+        id: string,
+        items: StockMovementItemsInput
+    ): CancelableResponse<OBStockMovement> {
+        return api
+            .request({
+                method: "post",
+                path: "/stockMovements/{id}/updateItems",
+                pathParams: { id },
+                data: { ...items, id },
+            })
+            .map(({ data }) => toStockMovement(data.data));
+    }
+
+    /* OpenBoxes answers with a redirect to the movement, and fetch follows it. */
+    function updateRequisition(
+        id: string,
+        fields: Partial<StockMovementInput>
+    ): CancelableResponse<OBStockMovement> {
+        const { dateRequested, ...rest } = fields;
+        return api
+            .request({
+                method: "post",
+                path: "/stockMovements/{id}/updateRequisition",
+                pathParams: { id },
+                data: {
+                    ...rest,
+                    dateRequested: formatOptionalDate(dateRequested, toOpenBoxesDate),
+                },
+            })
+            .map(({ data }) => toStockMovement(data.data));
+    }
+
+    function updateShipment(
+        id: string,
+        fields: StockMovementShipmentInput
+    ): CancelableResponse<void> {
+        const { dateShipped, expectedDeliveryDate, ...rest } = fields;
+        return api
+            .request({
+                method: "post",
+                path: "/stockMovements/{id}/updateShipment",
+                pathParams: { id },
+                data: {
+                    ...rest,
+                    dateShipped: formatOptionalDate(dateShipped, toOpenBoxesDateTime),
+                    expectedDeliveryDate: formatOptionalDate(
+                        expectedDeliveryDate,
+                        toOpenBoxesDateTime
+                    ),
+                },
+            })
+            .map(() => undefined);
+    }
+
+    function updateStatus(id: string, body: StockMovementStatusBody): CancelableResponse<void> {
+        return api
+            .request({
+                method: "post",
+                path: "/stockMovements/{id}/status",
+                pathParams: { id },
+                data: body,
+            })
+            .map(() => undefined);
+    }
+
+    function createPicklist(id: string): CancelableResponse<void> {
+        return api
+            .request({
+                method: "get",
+                path: "/stockMovements/createPickList/{id}",
+                pathParams: { id },
+            })
+            .map(() => undefined);
+    }
+
+    function validatePicklist(id: string): CancelableResponse<void> {
+        return api
+            .request({
+                method: "get",
+                path: "/stockMovements/{id}/validatePicklist",
+                pathParams: { id },
+            })
+            .map(() => undefined);
+    }
+
+    function deleteMovement(id: string): CancelableResponse<void> {
+        return api
+            .request({ method: "delete", path: "/stockMovements/{id}", pathParams: { id } })
+            .map(() => undefined);
     }
 
     function uploadDocument(id: string, file: Blob, fileName: string): CancelableResponse<void> {
@@ -178,7 +370,24 @@ export function createStockMovements(api: StockMovementApi): StockMovements {
         });
     }
 
-    return { list, get, uploadDocument, downloadDocument };
+    return {
+        list,
+        get,
+        create,
+        updateItems,
+        updateRequisition,
+        updateShipment,
+        updateStatus,
+        createPicklist,
+        validatePicklist,
+        delete: deleteMovement,
+        uploadDocument,
+        downloadDocument,
+    };
+}
+
+function toMovementBody(movement: StockMovementInput): StockMovementBody {
+    return { ...movement, dateRequested: toOpenBoxesDate(movement.dateRequested) };
 }
 
 /* The web app path of OpenBoxes: `apiPath` without its last `api` segment ("openboxes/api" → "openboxes"). */
@@ -234,8 +443,8 @@ function toStockMovementSummary(
     };
 }
 
-function toShipmentRef(shipment: Maybe<{ id: string } | null>): Maybe<OBIdRef> {
-    return shipment ? { id: shipment.id } : undefined;
+function toShipmentRef(shipment: Maybe<{ id?: string | null } | null>): Maybe<OBIdRef> {
+    return shipment?.id ? { id: shipment.id } : undefined;
 }
 
 function toStockMovementFields(

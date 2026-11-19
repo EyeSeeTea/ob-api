@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FetchCall, httpErrorOf, jsonResponse } from "../../__tests__/fetchStub";
+import {
+    bodyOf,
+    emptyResponse,
+    FetchCall,
+    httpErrorOf,
+    jsonResponse,
+} from "../../__tests__/fetchStub";
 import { availableItemBody, productBody } from "./endpointFixtures";
 import { API_URL, requestsAfterLogin, stubServer, testApi as api } from "./endpointServer";
 
@@ -165,5 +171,99 @@ describe("products.availableItems", () => {
 
         expect(requestsAfterLogin(calls()).map(call => productIdsOf(call).length)).toEqual([120]);
         expect(result.objects.map(item => item.product.id)).toEqual(ids(120));
+    });
+});
+
+describe("products.create", () => {
+    it("posts the product and reads it from the { product } answer", async () => {
+        const calls = stubServer(() =>
+            jsonResponse({
+                product: {
+                    id: "p9",
+                    productCode: "GLV01",
+                    name: "Gloves",
+                    category: { id: "cat-1" },
+                },
+            })
+        );
+
+        const product = await api()
+            .products.create({
+                name: "Gloves",
+                category: { id: "cat-1" },
+                productType: { id: "DEFAULT" },
+            })
+            .getData();
+
+        const [create] = requestsAfterLogin(calls());
+        expect(create?.url).toEqual(`${API_URL}/products`);
+        expect(create?.init.method).toEqual("POST");
+        expect(bodyOf(create)).toEqual({
+            name: "Gloves",
+            category: { id: "cat-1" },
+            productType: { id: "DEFAULT" },
+        });
+        expect(product).toEqual({ id: "p9", productCode: "GLV01", name: "Gloves" });
+    });
+});
+
+const genericProductBody = (overrides: Record<string, unknown> = {}) => ({
+    id: "p9",
+    productCode: "GLV01",
+    name: "Gloves",
+    description: null,
+    category: "Medicines",
+    unitOfMeasure: "each",
+    lotAndExpiryControl: false,
+    active: true,
+    ...overrides,
+});
+
+describe("generic.products", () => {
+    it("puts only the given fields to the generic product path and returns the product", async () => {
+        const calls = stubServer(() =>
+            jsonResponse({ data: genericProductBody({ name: "Nitrile gloves" }) })
+        );
+
+        const product = await api()
+            .generic.products.update("p9", { name: "Nitrile gloves" })
+            .getData();
+
+        const [update] = requestsAfterLogin(calls());
+        expect(update?.url).toEqual(`${API_URL}/generic/product/p9`);
+        expect(update?.init.method).toEqual("PUT");
+        expect(bodyOf(update)).toEqual({ name: "Nitrile gloves" });
+        expect(product).toEqual({
+            id: "p9",
+            productCode: "GLV01",
+            name: "Nitrile gloves",
+            description: undefined,
+            category: "Medicines",
+            unitOfMeasure: "each",
+            lotAndExpiryControl: false,
+            active: true,
+        });
+    });
+
+    it("reads a generic product, with the category as a name", async () => {
+        const calls = stubServer(() => jsonResponse({ data: genericProductBody() }));
+
+        const product = await api().generic.products.get("p9").getData();
+
+        expect(requestsAfterLogin(calls()).map(call => call.url)).toEqual([
+            `${API_URL}/generic/product/p9`,
+        ]);
+        expect(product.category).toEqual("Medicines");
+    });
+
+    it("deletes a product and resolves with no value", async () => {
+        const calls = stubServer(() => emptyResponse(204));
+
+        const result = await api().generic.products.delete("p9").getData();
+
+        expect(requestsAfterLogin(calls()).map(call => [call.init.method, call.url])).toEqual([
+            ["DELETE", `${API_URL}/generic/product/p9`],
+        ]);
+        expect(result).toBeUndefined();
     });
 });

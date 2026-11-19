@@ -1,7 +1,7 @@
 import { Codec, number, string } from "purify-ts";
 import { describe, expect, it } from "vitest";
 import { HttpError, HttpRequest } from "../../repositories/HttpClientRepository";
-import { checkResponse, nullish } from "../responseCheck";
+import { checkResponse, emptyResponseCodec, emptyToUndefined, nullish } from "../responseCheck";
 
 const REQUEST: HttpRequest = { method: "get", url: "/products" };
 const productCodec = Codec.interface({ id: string, quantity: number, lot: nullish(string) });
@@ -62,5 +62,28 @@ describe("checkResponse", () => {
 
         expect(problem).toHaveLength(301);
         expect(problem.endsWith("…")).toBe(true);
+    });
+});
+
+describe("emptyResponseCodec", () => {
+    it("accepts the empty body of a 204 or of an answer without a body", () => {
+        expect(emptyResponseCodec.decode("").isRight()).toBe(true);
+    });
+
+    it("rejects a JSON body, so an unexpected answer does not pass", () => {
+        expect(emptyResponseCodec.decode({ data: {} }).isLeft()).toBe(true);
+        expect(emptyResponseCodec.decode("<html>").isLeft()).toBe(true);
+    });
+});
+
+describe("emptyToUndefined", () => {
+    it("gives undefined for an empty string, null and undefined", () => {
+        expect([emptyToUndefined(""), emptyToUndefined(null), emptyToUndefined(undefined)]).toEqual(
+            [undefined, undefined, undefined]
+        );
+    });
+
+    it("keeps a string with text", () => {
+        expect(emptyToUndefined("06/24/2026")).toEqual("06/24/2026");
     });
 });

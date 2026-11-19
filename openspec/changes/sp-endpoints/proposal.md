@@ -9,7 +9,6 @@ The Samaritan's Purse (SP) project will use ob-api. On 2026-11-10, Geonina liste
 The new endpoints follow the `low-level-v1` rules: 1 request for each method, the OpenBoxes names and structure, only mechanical changes (dotted keys to nested objects, `null` to `undefined`, a `Date` input to the OpenBoxes string). Each one is in the endpoint map, so `api.request` checks it too. The source is OpenBoxes `v0.9.7` (the test server). The SP server version is not known yet.
 
 - **Stock movements (writes).** Create a movement, update its items, requisition and shipment, change its status, create and validate the picklist, and delete it. A stock request is a stock movement with a requisition: OpenBoxes has no separate stock request API, and its "Stock Request" pages use the stock movement controller.
-- **Stock adjustments.** Create adjustments at a location (`POST /stockAdjustments`).
 - **Stock transfers.** List, read, create, update and delete, send the shipment, and roll back.
 - **Locations.** Read, create, update and delete one location, and list the location types.
 - **Products.** Create a product (`POST /products`). Update and delete through the generic API, because `/products` has no update or delete.
@@ -32,13 +31,14 @@ The OpenBoxes paths of these 4 do not change.
 
 ## Goals
 
-- Every item of Geonina's priority list, plus purchase orders, has a typed method and a typed `request` endpoint.
+- Every item of Geonina's priority list, plus purchase orders, has a typed method and a typed `request` endpoint, except stock adjustments (see Non-goals).
 - The generic API has one place in the client, and each generic resource has its own literal path (`/generic/product/{id}`), so TypeScript checks its body and its answer.
 
 ## Non-goals
 
 - Workflows that send more than 1 request (for example: create a movement, add items, then dispatch). They belong in the SDK layer.
 - Version detection and capability flags (SDK layer).
+- Stock adjustments (`POST /stockAdjustments`): OpenBoxes 0.9.7 up to `develop` answers `500` for every request (see `design.md`). Stock changes go through `generic.transactions.create` until OpenBoxes fixes it.
 - Stock transfer candidates and status options, location and product imports (CSV), and other endpoints that SP did not list.
 - PurchaseOrder update and order items. Geonina put purchase orders in "later"; this change covers only list, read, create, delete and roll back.
 
@@ -46,7 +46,6 @@ The OpenBoxes paths of these 4 do not change.
 
 ### New Capabilities
 
-- `api-stock-adjustments`: create stock adjustments at a location.
 - `api-stock-transfers`: list, read, create, update, delete, send and roll back stock transfers.
 - `api-categories`: list, read, create, update and delete product categories.
 - `api-product-packages`: create product packages, and read, update and delete them through the generic API.
@@ -75,7 +74,7 @@ The change is additive except for the namespace move. To roll back, revert its c
 
 ## Impact
 
-- New files in `src/api/`: one for each new resource (`stockAdjustments.ts`, `stockTransfers.ts`, `categories.ts`, `productPackages.ts`, `purchaseOrders.ts`) and `generic.ts` for the namespace.
+- New files in `src/api/`: one for each new resource (`stockTransfers.ts`, `categories.ts`, `productPackages.ts`, `purchaseOrders.ts`) and `generic.ts` for the namespace.
 - Changed: `endpoints.ts` (about 38 new keys), `OBApi.ts`, `stockMovements.ts`, `locations.ts`, `products.ts`, `index.ts`, the README "Typed endpoints" section and `DEVELOPMENT.md`.
 - Tests: a spec file for each new resource, and live checks on the OpenBoxes test server as the non-admin user `obapi-test`.
-- The test server gets new test data (transfers, adjustments, a category, a product, a purchase order).
+- The test server gets new test data (transfers, a category, a product, a purchase order).

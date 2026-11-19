@@ -2,13 +2,20 @@ import { Either, GetType } from "purify-ts";
 import { CancelableResponse, rejectedResponse } from "../repositories/CancelableResponse";
 import { HttpRequest, Method } from "../repositories/HttpClientRepository";
 import { isDefined } from "../utils/ts-utils";
+import { CategoryInput, CategoryUpdateQuery, categoryCodec, categoryListCodec } from "./categories";
 import {
     createdCodec,
     inventoryListCodec,
     TransactionBody,
     transactionTypeListCodec,
 } from "./inventoryTransactions";
-import { LocationListParams, locationListCodec } from "./locations";
+import {
+    LocationInput,
+    LocationListParams,
+    locationDetailCodec,
+    locationListCodec,
+    locationTypeListCodec,
+} from "./locations";
 import type { OBApi } from "./OBApi";
 import {
     PartialReceiptBody,
@@ -17,25 +24,90 @@ import {
 } from "./partialReceipts";
 import { OBSearchBody, personListCodec } from "./people";
 import {
+    ProductPackageInput,
+    ProductSupplierPackageBody,
+    productPackageResponseCodec,
+    productSupplierResponseCodec,
+} from "./productPackages";
+import {
     AvailableItemsQuery,
     availableItemListCodec,
+    genericProductResponseCodec,
+    ProductInput,
     ProductListParams,
+    productCreatedCodec,
     productListCodec,
 } from "./products";
-import { checkResponse } from "./responseCheck";
 import {
+    OrderBody,
+    PurchaseOrderListParams,
+    purchaseOrderListCodec,
+    purchaseOrderResponseCodec,
+} from "./purchaseOrders";
+import { checkResponse, emptyResponseCodec } from "./responseCheck";
+import {
+    StockMovementBody,
+    StockMovementItemsBody,
     StockMovementListParams,
+    StockMovementRequisitionBody,
+    StockMovementShipmentBody,
+    StockMovementStatusBody,
     stockMovementDetailCodec,
     stockMovementListCodec,
 } from "./stockMovements";
+import {
+    StockTransferBody,
+    StockTransferListParams,
+    stockTransferDetailCodec,
+    stockTransferListCodec,
+} from "./stockTransfers";
 
 /* `params` (query) and `data` (body) of each typed endpoint, with the OpenBoxes names. */
 type OBEndpointInputs = {
     "get /products": Input<{ params?: ProductListParams }>;
     "get /products/availableItems": Input<{ params: AvailableItemsQuery }>;
+    "post /products": Input<{ data: ProductInput }>;
+    "get /generic/product/{id}": NoInput;
+    "put /generic/product/{id}": Input<{ data: Partial<ProductInput> }>;
+    "delete /generic/product/{id}": NoInput;
+    "post /productPackages": Input<{ data: ProductSupplierPackageBody }>;
+    "get /generic/productPackage/{id}": NoInput;
+    "post /generic/productPackage": Input<{ data: ProductPackageInput }>;
+    "put /generic/productPackage/{id}": Input<{ data: Partial<ProductPackageInput> }>;
+    "delete /generic/productPackage/{id}": NoInput;
+    "get /purchaseOrders": Input<{ params?: PurchaseOrderListParams }>;
+    "get /purchaseOrders/{id}": NoInput;
+    "delete /purchaseOrders/{id}": NoInput;
+    "post /purchaseOrders/{id}/rollback": NoInput;
+    "post /generic/order": Input<{ data: OrderBody }>;
     "get /locations": Input<{ params?: LocationListParams }>;
+    "get /locations/{id}": NoInput;
+    "post /locations": Input<{ data: LocationInput }>;
+    "post /locations/{id}": Input<{ data: Partial<LocationInput> }>;
+    "delete /locations/{id}": NoInput;
+    "get /locations/locationTypes": NoInput;
+    "get /categories": NoInput;
+    "get /categories/{id}": NoInput;
+    "post /categories": Input<{ data: CategoryInput }>;
+    "put /categories/{id}": Input<{ params: CategoryUpdateQuery }>;
+    "delete /categories/{id}": NoInput;
     "get /stockMovements": Input<{ params: StockMovementListParams }>;
     "get /stockMovements/{id}": NoInput;
+    "post /stockMovements": Input<{ data: StockMovementBody }>;
+    "post /stockMovements/{id}/updateItems": Input<{ data: StockMovementItemsBody }>;
+    "post /stockMovements/{id}/updateRequisition": Input<{ data: StockMovementRequisitionBody }>;
+    "post /stockMovements/{id}/updateShipment": Input<{ data: StockMovementShipmentBody }>;
+    "post /stockMovements/{id}/status": Input<{ data: StockMovementStatusBody }>;
+    "get /stockMovements/createPickList/{id}": NoInput;
+    "get /stockMovements/{id}/validatePicklist": NoInput;
+    "delete /stockMovements/{id}": NoInput;
+    "get /stockTransfers": Input<{ params: StockTransferListParams }>;
+    "get /stockTransfers/{id}": NoInput;
+    "post /stockTransfers": Input<{ data: StockTransferBody }>;
+    "put /stockTransfers/{id}": Input<{ data: StockTransferBody }>;
+    "delete /stockTransfers/{id}": NoInput;
+    "post /stockTransfers/{id}/sendShipment": NoInput;
+    "post /stockTransfers/{id}/rollback": NoInput;
     "get /partialReceiving/{shipmentId}": NoInput;
     "post /partialReceiving/{shipmentId}": Input<{ data: PartialReceiptBody }>;
     "get /generic/TransactionType": NoInput;
@@ -55,9 +127,48 @@ type NoInput = Input<Record<never, never>>;
 const ENDPOINT_CODECS = {
     "get /products": productListCodec,
     "get /products/availableItems": availableItemListCodec,
+    "post /products": productCreatedCodec,
+    "get /generic/product/{id}": genericProductResponseCodec,
+    "put /generic/product/{id}": genericProductResponseCodec,
+    "delete /generic/product/{id}": emptyResponseCodec,
+    "post /productPackages": productSupplierResponseCodec,
+    "get /generic/productPackage/{id}": productPackageResponseCodec,
+    "post /generic/productPackage": productPackageResponseCodec,
+    "put /generic/productPackage/{id}": productPackageResponseCodec,
+    "delete /generic/productPackage/{id}": emptyResponseCodec,
+    "get /purchaseOrders": purchaseOrderListCodec,
+    "get /purchaseOrders/{id}": purchaseOrderResponseCodec,
+    "delete /purchaseOrders/{id}": emptyResponseCodec,
+    "post /purchaseOrders/{id}/rollback": emptyResponseCodec,
+    "post /generic/order": purchaseOrderResponseCodec,
     "get /locations": locationListCodec,
+    "get /locations/{id}": locationDetailCodec,
+    "post /locations": locationDetailCodec,
+    "post /locations/{id}": locationDetailCodec,
+    "delete /locations/{id}": emptyResponseCodec,
+    "get /locations/locationTypes": locationTypeListCodec,
+    "get /categories": categoryListCodec,
+    "get /categories/{id}": categoryCodec,
+    "post /categories": categoryCodec,
+    "put /categories/{id}": categoryCodec,
+    "delete /categories/{id}": emptyResponseCodec,
     "get /stockMovements": stockMovementListCodec,
     "get /stockMovements/{id}": stockMovementDetailCodec,
+    "post /stockMovements": stockMovementDetailCodec,
+    "post /stockMovements/{id}/updateItems": stockMovementDetailCodec,
+    "post /stockMovements/{id}/updateRequisition": stockMovementDetailCodec,
+    "post /stockMovements/{id}/updateShipment": emptyResponseCodec,
+    "post /stockMovements/{id}/status": emptyResponseCodec,
+    "get /stockMovements/createPickList/{id}": emptyResponseCodec,
+    "get /stockMovements/{id}/validatePicklist": emptyResponseCodec,
+    "delete /stockMovements/{id}": emptyResponseCodec,
+    "get /stockTransfers": stockTransferListCodec,
+    "get /stockTransfers/{id}": stockTransferDetailCodec,
+    "post /stockTransfers": stockTransferDetailCodec,
+    "put /stockTransfers/{id}": stockTransferDetailCodec,
+    "delete /stockTransfers/{id}": emptyResponseCodec,
+    "post /stockTransfers/{id}/sendShipment": emptyResponseCodec,
+    "post /stockTransfers/{id}/rollback": emptyResponseCodec,
     "get /partialReceiving/{shipmentId}": receiptResponseCodec,
     "post /partialReceiving/{shipmentId}": receiptSaveResponseCodec,
     "get /generic/TransactionType": transactionTypeListCodec,
@@ -131,7 +242,7 @@ export function requestEndpoint(
     if (!isEndpointKey(key)) return rejectedResponse(new Error(`No typed endpoint for ${key}`));
 
     const pathParams = options.pathParams ?? {};
-    const missing = pathParamNames(options.path).filter(name => !(name in pathParams));
+    const missing = pathParamNames(options.path).filter(name => !pathParams[name]);
     if (missing.length > 0) {
         return rejectedResponse(
             new Error(`Missing path parameters for ${key}: ${missing.join(", ")}`)

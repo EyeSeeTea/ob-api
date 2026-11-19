@@ -74,30 +74,90 @@ const body = await api
 api.request({ method: "get", path: "/stockMovments" }); // TypeScript error: no such endpoint
 ```
 
-#### Read
+The paths are relative to `apiPath`. "nothing" means that the request resolves with `undefined`.
 
-| Method                                                                                             | Request                              | Result                                         |
-| -------------------------------------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------- |
-| `products.list({ max?, offset?, q? })`                                                             | `GET /products`                      | `{ objects: OBProduct[], total }`              |
-| `products.availableItems({ location: { id }, product: { id: [...] } })`                            | `GET /products/availableItems`       | `{ objects: OBAvailableItem[] }`               |
-| `locations.list({ locationTypeCode? })`                                                            | `GET /locations`                     | `{ objects: OBLocation[] }`                    |
-| `stockMovements.list({ direction, origin and/or destination, receiptStatusCode?, max?, offset? })` | `GET /stockMovements`                | `{ objects: OBStockMovementSummary[], total }` |
-| `stockMovements.get(id)`                                                                           | `GET /stockMovements/{id}`           | `OBStockMovement`                              |
-| `stockMovements.downloadDocument(uri)`                                                             | `GET <uri>`                          | `Blob`                                         |
-| `partialReceipts.get(shipmentId)`                                                                  | `GET /partialReceiving/{shipmentId}` | `OBPartialReceipt`                             |
-| `transactionTypes.list()`                                                                          | `GET /generic/TransactionType`       | `{ objects: OBTransactionType[] }`             |
-| `inventories.list()`                                                                               | `GET /generic/inventory`             | `{ objects: OBInventory[] }`                   |
-| `people.search({ searchAttributes })`                                                              | `POST /generic/person/search`        | `{ objects: OBPerson[] }`                      |
+#### Products, locations and categories
 
-#### Write
+| Method                                                                  | Request                                                            | Result                                |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------- |
+| `products.list({ max?, offset?, q? })`                                  | `GET /products`                                                    | `{ objects: OBProduct[], total }`     |
+| `products.availableItems({ location: { id }, product: { id: [...] } })` | `GET /products/availableItems`                                     | `{ objects: OBAvailableItem[] }`      |
+| `products.create(product)`                                              | `POST /products`                                                   | `OBCreatedProduct`                    |
+| `productPackages.create(command)`                                       | `POST /productPackages`                                            | `{ id }` of the product supplier      |
+| `locations.list({ locationTypeCode? })`                                 | `GET /locations`                                                   | `{ objects: OBLocation[] }`           |
+| `locations.get(id)`, `create(location)`, `update(id, fields)`           | `GET /locations/{id}`, `POST /locations`, `POST /locations/{id}`   | `OBLocation`                          |
+| `locations.delete(id)`                                                  | `DELETE /locations/{id}`                                           | nothing                               |
+| `locations.locationTypes()`                                             | `GET /locations/locationTypes`                                     | `{ objects: OBLocationTypeDetail[] }` |
+| `categories.list()`                                                     | `GET /categories`                                                  | `{ objects: OBCategory[] }`           |
+| `categories.get(id)`, `create(category)`, `update(id, fields)`          | `GET /categories/{id}`, `POST /categories`, `PUT /categories/{id}` | `OBCategory`                          |
+| `categories.delete(id)`                                                 | `DELETE /categories/{id}`                                          | nothing                               |
 
-| Method                                              | Request                                                         | Result             |
-| --------------------------------------------------- | --------------------------------------------------------------- | ------------------ |
-| `stockMovements.uploadDocument(id, file, fileName)` | `POST /openboxes/stockMovement/uploadDocument/{id}` (form data) | nothing            |
-| `partialReceipts.savePending(shipmentId, receipt)`  | `POST /partialReceiving/{shipmentId}` (`PENDING`)               | `OBPartialReceipt` |
-| `partialReceipts.complete(shipmentId, receipt)`     | `POST /partialReceiving/{shipmentId}` (`COMPLETED`)             | nothing            |
-| `transactions.create(transaction)`                  | `POST /generic/transaction`                                     | `{ id }`           |
-| `chooseLocation(locationId)`                        | `GET /chooseLocation/{locationId}`                              | nothing            |
+#### Stock movements, receipts and transfers
+
+| Method                                                                                             | Request                                                                        | Result                                         |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------- |
+| `stockMovements.list({ direction, origin and/or destination, receiptStatusCode?, max?, offset? })` | `GET /stockMovements`                                                          | `{ objects: OBStockMovementSummary[], total }` |
+| `stockMovements.get(id)`                                                                           | `GET /stockMovements/{id}`                                                     | `OBStockMovement`                              |
+| `stockMovements.create(movement)`                                                                  | `POST /stockMovements`                                                         | `OBStockMovement`                              |
+| `stockMovements.updateItems(id, { lineItems, removeEmptyItems? })`                                 | `POST /stockMovements/{id}/updateItems`                                        | `OBStockMovement`                              |
+| `stockMovements.updateRequisition(id, fields)`                                                     | `POST /stockMovements/{id}/updateRequisition`                                  | `OBStockMovement`                              |
+| `stockMovements.updateShipment(id, fields)`                                                        | `POST /stockMovements/{id}/updateShipment`                                     | nothing                                        |
+| `stockMovements.updateStatus(id, { status, rollback?, statusOnly?, clearPicklist? })`              | `POST /stockMovements/{id}/status`                                             | nothing                                        |
+| `stockMovements.createPicklist(id)`                                                                | `GET /stockMovements/createPickList/{id}`                                      | nothing                                        |
+| `stockMovements.validatePicklist(id)`                                                              | `GET /stockMovements/{id}/validatePicklist`                                    | nothing                                        |
+| `stockMovements.delete(id)`                                                                        | `DELETE /stockMovements/{id}`                                                  | nothing                                        |
+| `stockMovements.uploadDocument(id, file, fileName)`                                                | `POST /openboxes/stockMovement/uploadDocument/{id}` (form data)                | nothing                                        |
+| `stockMovements.downloadDocument(uri)`                                                             | `GET <uri>`                                                                    | `Blob`                                         |
+| `partialReceipts.get(shipmentId)`                                                                  | `GET /partialReceiving/{shipmentId}`                                           | `OBPartialReceipt`                             |
+| `partialReceipts.savePending(shipmentId, receipt)`                                                 | `POST /partialReceiving/{shipmentId}` (`PENDING`)                              | `OBPartialReceipt`                             |
+| `partialReceipts.complete(shipmentId, receipt)`                                                    | `POST /partialReceiving/{shipmentId}` (`COMPLETED`)                            | nothing                                        |
+| `stockTransfers.list({ location, max?, offset? })`                                                 | `GET /stockTransfers`                                                          | `{ objects: OBStockTransferSummary[], total }` |
+| `stockTransfers.get(id)`, `create(transfer)`, `update(id, transfer)`                               | `GET /stockTransfers/{id}`, `POST /stockTransfers`, `PUT /stockTransfers/{id}` | `OBStockTransfer`                              |
+| `stockTransfers.delete(id)`, `sendShipment(id)`, `rollback(id)`                                    | `DELETE /stockTransfers/{id}`, `POST …/sendShipment`, `POST …/rollback`        | nothing                                        |
+
+#### Purchase orders and session
+
+| Method                                      | Request                                                             | Result                                         |
+| ------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------- |
+| `purchaseOrders.list({ max?, offset? })`    | `GET /purchaseOrders`                                               | `{ objects: OBPurchaseOrderSummary[], total }` |
+| `purchaseOrders.get(id)`                    | `GET /purchaseOrders/{id}`                                          | `OBPurchaseOrder`                              |
+| `purchaseOrders.delete(id)`, `rollback(id)` | `DELETE /purchaseOrders/{id}`, `POST /purchaseOrders/{id}/rollback` | nothing                                        |
+| `chooseLocation(locationId)`                | `GET /chooseLocation/{locationId}`                                  | nothing                                        |
+
+#### Generic API (`api.generic`)
+
+OpenBoxes also has a generic API, `/generic/{resource}`, for its domain classes. The resources that ob-api reads or writes through it are under `api.generic`. Each one has its own path, so `api.request` checks its body and its answer. A resource with a dedicated API stays at the top level: `api.products.create` uses `/products`, and `api.generic.products.update` uses `/generic/product/{id}`, because `/products` has no update.
+
+| Method                                                                            | Request                                                                   | Result                             |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------- |
+| `generic.products.get(id)`, `update(id, fields)`                                  | `GET`, `PUT /generic/product/{id}`                                        | `OBGenericProduct`                 |
+| `generic.products.delete(id)`                                                     | `DELETE /generic/product/{id}`                                            | nothing                            |
+| `generic.productPackages.get(id)`, `create(productPackage)`, `update(id, fields)` | `GET`, `PUT /generic/productPackage/{id}`, `POST /generic/productPackage` | `OBProductPackage`                 |
+| `generic.productPackages.delete(id)`                                              | `DELETE /generic/productPackage/{id}`                                     | nothing                            |
+| `generic.orders.create(order)`                                                    | `POST /generic/order`                                                     | `OBPurchaseOrder`                  |
+| `generic.transactionTypes.list()`                                                 | `GET /generic/TransactionType`                                            | `{ objects: OBTransactionType[] }` |
+| `generic.inventories.list()`                                                      | `GET /generic/inventory`                                                  | `{ objects: OBInventory[] }`       |
+| `generic.transactions.create(transaction)`                                        | `POST /generic/transaction`                                               | `{ id }`                           |
+| `generic.people.search({ searchAttributes })`                                     | `POST /generic/person/search`                                             | `{ objects: OBPerson[] }`          |
+
+```ts
+const product = await api.products
+    .create({ name: "Gloves", category: { id: categoryId }, productType: { id: "DEFAULT" } })
+    .getData();
+await api.generic.products.update(product.id, { description: "Nitrile, size M" }).getData();
+
+// The same update, at the low level:
+await api
+    .request({
+        method: "put",
+        path: "/generic/product/{id}",
+        pathParams: { id: product.id },
+        data: { description: "Nitrile, size M" },
+    })
+    .getData();
+```
+
+For a generic resource that ob-api does not type, use `requestUntyped`, for example `api.requestUntyped({ method: "get", url: "/generic/productSupplier/ps-1" })`.
 
 Results:
 
@@ -107,6 +167,9 @@ Results:
 - A partial receipt has `containers`, each with its `container` (`id`, `name`) and its `shipmentItems`, in the order that OpenBoxes sends.
 - A stock movement has `associations: { shipment, documents }`. `stockMovements.list` returns `associations` without `documents`, because OpenBoxes does not send them in the list. Use `stockMovements.get(id)` to read them.
 - Stock movement `statusCode` is a string, because OpenBoxes sends values outside its own list (for example `ISSUED`).
+- OpenBoxes does not answer every call with `{ data }`. ob-api reads the real answer of each endpoint: `products.create` reads `{ product }`, and the category read and save read the category itself. `productPackages.create` returns the product supplier, because OpenBoxes answers with it, not with the package.
+- A stock transfer sends `""` for some absent strings (`dateShipped`). The result has `undefined` for them, as for `null`.
+- A purchase order of the list has `origin` and `destination` as location names, as OpenBoxes sends them.
 - After `complete`, a new `partialReceipts.get` shows `receiptStatus: "PENDING"` again: it is an empty receipt for a next partial receipt. To check that a shipment is received, read the stock movement `shipmentStatus` (`RECEIVED`).
 
 Parameters and inputs:
@@ -118,7 +181,20 @@ Parameters and inputs:
 - `locationTypeCode` is one of `OB_LOCATION_TYPE_CODES`, the `LocationTypeCode` enum of OpenBoxes. OpenBoxes answers `500` for other values.
 - `stockMovements.list` needs `direction` and at least one of `origin` and `destination`, or OpenBoxes answers `400`. The type requires them. `origin` and `destination` must also be different: OpenBoxes answers `400` when they are the same. `receiptStatusCode` accepts only shipment statuses (`OB_SHIPMENT_STATUSES`); OpenBoxes answers `500` for other values.
 - `savePending` and `complete` send `dateDelivered` in UTC as `MM/dd/yyyy HH:mm Z`, the only format OpenBoxes accepts. They send `null` for absent receipt ids, lots and expiry dates, so OpenBoxes clears them. Each item needs `lotNumber` and `expirationDate`: OpenBoxes receives the stock into the lot of the body, not of the shipment, so copy them from `get()`. `undefined` receives the stock without a lot. `complete` rejects an answer that is not the empty `{ data: {} }`.
-- `people.search` takes the generic OpenBoxes search body. `operator` is `eq` (exact), `like` or `ilike` (ignores case); `like` and `ilike` take `%` as the wildcard. `search` rejects an attribute with an empty `property` or `value` before the request, because OpenBoxes answers `500` for it.
+- A stock request is a stock movement with a requisition. OpenBoxes has no separate stock request API, so use the `stockMovements` methods: `create`, `updateItems`, `updateStatus`, the picklist methods and `updateShipment`. Each method sends 1 request; the order of the requests (a workflow) is the caller's job.
+- `stockMovements.create` sends `dateRequested` as `MM/dd/yyyy` in UTC. `updateShipment` sends `dateShipped` and `expectedDeliveryDate` in UTC as `MM/dd/yyyy HH:mm Z`. `stockTransfers.create` and `update` send `dateShipped` as `MM/dd/yyyy`.
+- `createPicklist` and `validatePicklist` change data, but OpenBoxes maps them to `GET`, so ob-api sends `GET`.
+- ob-api has no stock adjustment method: `POST /stockAdjustments` answers `500` on OpenBoxes 0.9.7 up to `develop` (checked on 2026-11-19), because its controller sets a field that does not exist (`AdjustStockCommand.quantity`). To change stock, use `generic.transactions.create` with an adjustment transaction type.
+- `stockTransfers.list` needs `location`, or OpenBoxes answers `400`. It returns summaries (`orderNumber`, location names). Use `get(id)` for the items. `stockTransfers.create` and `update` need a session location. `update` also sends the `id` in the body, because OpenBoxes reads it from there and creates a new transfer without it.
+- `products.create` needs `productType`: OpenBoxes rejects a product without one. A new server has `{ id: "DEFAULT" }`.
+- `locations.create` needs `organization` for most location types (for example a depot), or OpenBoxes answers `400`.
+- `locations.delete` rejects on OpenBoxes 0.9.7 although the location is deleted: OpenBoxes answers `404` after the delete. ob-api does not hide the status. To confirm the delete, call `locations.get(id)`: it rejects, because OpenBoxes answers `{ data: null }` for a deleted location.
+- `categories.update` sends the fields as query parameters, because OpenBoxes ignores the body of a category update.
+- A generic delete (`generic.products.delete`, `generic.productPackages.delete`) answers `500` ("existing association") while other records point to the record. Delete them first, or unset the link (for example the `defaultProductPackage` of a product supplier).
+- `purchaseOrders.get` and `generic.orders.create` give `status` as `{ name }`, as OpenBoxes sends it. The create answer has no `orderNumber`, because OpenBoxes gives the number later. Read it with `purchaseOrders.get`.
+- `generic.orders.create` needs an `origin` and a `destination` that have an organization. `purchaseOrders.delete` works only for a `PENDING` order; OpenBoxes answers `400` for other orders.
+- An update sends only the fields that you give (`locations.update`, `categories.update`, the generic `update` methods).
+- `generic.people.search` takes the generic OpenBoxes search body. `operator` is `eq` (exact), `like` or `ilike` (ignores case); `like` and `ilike` take `%` as the wildcard. `search` rejects an attribute with an empty `property` or `value` before the request, because OpenBoxes answers `500` for it.
 - `uploadDocument` posts outside `apiPath`, to the OpenBoxes web app path: `apiPath` without its last `api` segment (`openboxes/api` gives `openboxes`).
 - `downloadDocument` accepts only a URI on the OpenBoxes server (it starts with `baseUrl`), so the session cookie goes nowhere else. For another URI, it rejects without a request.
 - `chooseLocation` changes the location of the current session, and later automatic logins use it. `login(locationId)` does the same with a new login.

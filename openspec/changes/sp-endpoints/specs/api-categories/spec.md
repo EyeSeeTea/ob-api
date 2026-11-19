@@ -32,6 +32,15 @@ Each category SHALL have `id` and `name`, and MAY have `description`, `sortOrder
 - **THEN** the client sends that body to `…/openboxes/api/categories`
 - **AND** the result has `{ id: "cat-9", name: "Gloves" }`
 
+### Requirement: Category update as query parameters
+
+`api.categories.update(id, fields)` SHALL send the fields as query parameters, with `parentCategory` as `parentCategory.id`, and no body, because OpenBoxes ignores the JSON body of an update.
+
+#### Scenario: Rename a category
+
+- **WHEN** the caller runs `api.categories.update("cat-9", { name: "Medicine" })`
+- **THEN** the client sends `PUT …/openboxes/api/categories/cat-9?name=Medicine` without a body
+
 ### Requirement: Delete a category
 
 `api.categories.delete(id)` SHALL send `DELETE <apiPath>/categories/{id}` and resolve with no value.
