@@ -1,6 +1,6 @@
 # Typed endpoint overload
 
-**Exception to** `lang/typescript.md` → *Casts: upcast yes, downcast no*.
+**Exception to** `lang/typescript.md` → _Casts: upcast yes, downcast no_.
 
 **Where it applies:** only `requestEndpoint` in `src/api/endpoints.ts`.
 

@@ -33,6 +33,8 @@ The client returns the body as OpenBoxes sends it. It does not remove the `{ dat
 
 ### Typed endpoints
 
+The [endpoints wiki](https://github.com/EyeSeeTea/ob-api/wiki) is the team guide: it tells you which method to use for each task, with workflows and the known OpenBoxes issues.
+
 ob-api has 2 typed levels. Both send 1 request for each call, and both check the response.
 
 **1. Resource methods.** They keep the OpenBoxes names and structure, and make only mechanical changes: a dotted key becomes a nested object (`"product.id"` → `product: { id }`), `null` becomes `undefined`, and a `Date` input is sent in the format that OpenBoxes accepts.
