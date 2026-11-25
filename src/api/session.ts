@@ -6,6 +6,7 @@ import {
     HttpError,
     HttpRequest,
 } from "../repositories/HttpClientRepository";
+import { untilAborted } from "../utils/abort";
 import { Maybe } from "../utils/ts-utils";
 
 export type Session = Readonly<{
@@ -129,15 +130,4 @@ function withoutPassword(error: unknown): unknown {
 
     const request = { ...error.request, data: "[login body hidden]" };
     return new HttpError(error.message, { request, response: error.response });
-}
-
-/* Rejects with the abort reason as soon as the signal aborts, even when `promise` never settles. */
-function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-    if (signal.aborted) return Promise.reject(signal.reason);
-
-    return new Promise<T>((resolve, reject) => {
-        const onAbort = () => reject(signal.reason);
-        signal.addEventListener("abort", onAbort, { once: true });
-        promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
-    });
 }

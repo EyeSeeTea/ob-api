@@ -13,6 +13,15 @@ The SDK client (`OBSdk`): the layer on top of the low-level `OBApi` that runs Op
 - **WHEN** a caller creates an `OBSdk` from an `OBApi`
 - **THEN** no request is sent
 
+### Requirement: Check the SDK options
+
+`new OBSdk` SHALL throw a `RangeError` that names the option when `retry.attempts` or `concurrency` is not an integer of 1 or more, or `retry.delayMs` is not a finite number of 0 or more.
+
+#### Scenario: Invalid option
+
+- **WHEN** a caller creates an `OBSdk` with `concurrency: NaN`
+- **THEN** the constructor throws a `RangeError` that names `concurrency`
+
 ### Requirement: Cancel a workflow
 
 Every SDK workflow SHALL return a `CancelableResponse`. Cancel SHALL stop the request in progress and SHALL NOT start the next requests of the workflow.
@@ -42,7 +51,7 @@ A workflow that fails or is canceled SHALL release the lock, so the next workflo
 
 ### Requirement: Server version
 
-`sdk.serverVersion(options?)` SHALL return a `Promise` of the server version: `appVersion` (the string from OpenBoxes) and its numeric `major`, `minor` and `patch`. A suffix such as `-SNAPSHOT` SHALL NOT change the numbers. When the caller gives `version` to `new OBSdk`, the SDK SHALL use it and SHALL NOT send a request.
+`sdk.serverVersion(options?)` SHALL return a `CancelableResponse` of the server version: `appVersion` (the string from OpenBoxes) and its numeric `major`, `minor` and `patch`. A suffix such as `-SNAPSHOT` SHALL NOT change the numbers. When the caller gives `version` to `new OBSdk`, the SDK SHALL use it and SHALL NOT send a request.
 
 #### Scenario: Snapshot version
 
@@ -54,14 +63,24 @@ A workflow that fails or is canceled SHALL release the lock, so the next workflo
 - **WHEN** the caller creates the SDK with `version: "0.8.22"` and calls `serverVersion()`
 - **THEN** no request is sent, and the result has `minor: 8` and `patch: 22`
 
+#### Scenario: Given version without numbers
+
+- **WHEN** the caller creates the SDK with `version: "latest"`
+- **THEN** only a call of `serverVersion()` rejects, and the creation causes no unhandled rejection
+
 ### Requirement: Server version: shared read
 
-The first call of `serverVersion` SHALL read the version with `api.appContext.get()`. Later calls SHALL reuse it without a request, and calls at the same time SHALL share 1 request. It SHALL return a `Promise`, not a `CancelableResponse`, because a cancel by 1 caller must not stop the shared read for the others.
+The first call of `serverVersion` SHALL read the version with `api.appContext.get()`. Later calls SHALL reuse it without a request, and calls at the same time SHALL share 1 request. The read SHALL start at `getData()`, not at the call. A cancel SHALL reject only the wait of its caller, and SHALL NOT stop the shared read for the others.
 
 #### Scenario: Calls at the same time
 
 - **WHEN** 2 callers call `serverVersion()` before the first read ends
 - **THEN** the SDK sends 1 `getAppContext` request, and both calls get its version
+
+#### Scenario: One caller cancels
+
+- **WHEN** 2 callers wait for the same read, and the first caller cancels
+- **THEN** the first call rejects with an abort error, and the second call gets the version of the 1 `getAppContext` request
 
 ### Requirement: Server version: session location
 
@@ -77,6 +96,15 @@ The first call of `serverVersion` SHALL read the version with `api.appContext.ge
 - **WHEN** the version is already read and the caller calls `serverVersion({ locationId: "A" })`
 - **THEN** no request is sent
 
+### Requirement: Server version: failed shared read
+
+When a caller gives a `locationId` and the shared read that it waits for fails, the SDK SHALL read again with that `locationId`.
+
+#### Scenario: Shared read without a location fails
+
+- **WHEN** a read without a location is in progress, the caller calls `serverVersion({ locationId: "A" })`, and the first read fails with status `500`
+- **THEN** the first call rejects, and the SDK sends `chooseLocation` for `A`, then `getAppContext`, for the second call
+
 ### Requirement: Server version: failures
 
 When the read of the version fails, `serverVersion()` SHALL reject, and the next call SHALL read again. When `appVersion` is missing or has no `major.minor.patch` numbers, the call SHALL reject with an error that names the value.
@@ -89,16 +117,16 @@ When the read of the version fails, `serverVersion()` SHALL reject, and the next
 
 ### Requirement: Server version: capability flags
 
-`sdk.capabilities(options?)` SHALL return a `Promise` of an object with a boolean for each capability in the capability table. The table maps each capability to the first OpenBoxes version that has it. A capability SHALL be `true` when the server version is the same as, or later than, that version. `capabilities` SHALL take the same `options` as `serverVersion`, and SHALL NOT send more requests than `serverVersion(options)`.
+`sdk.capabilities(options?)` SHALL return a `CancelableResponse` of an object with a boolean for each capability that the SDK knows. Each capability has a first OpenBoxes version that has it. A capability SHALL be `true` when the server version is the same as, or later than, that version. `capabilities` SHALL take the same `options` as `serverVersion`, and SHALL NOT send more requests than `serverVersion(options)`.
 
 #### Scenario: Older server
 
-- **WHEN** the table has a capability that starts at `0.9.0`, and the server version is `0.8.22`
+- **WHEN** a capability starts at `0.9.0`, and the server version is `0.8.22`
 - **THEN** that capability is `false`
 
-### Requirement: Capability table of this change
+### Requirement: Capabilities of this change
 
-The capability table SHALL be empty in this change, because no workflow of this change depends on the server version.
+The SDK SHALL know no capability in this change, because no workflow of this change depends on the server version.
 
 #### Scenario: Empty table
 

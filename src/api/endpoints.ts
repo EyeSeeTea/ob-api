@@ -2,6 +2,7 @@ import { Either, GetType } from "purify-ts";
 import { CancelableResponse, rejectedResponse } from "../repositories/CancelableResponse";
 import { HttpRequest, Method } from "../repositories/HttpClientRepository";
 import { isDefined } from "../utils/ts-utils";
+import { appContextResponseCodec } from "./appContext";
 import { CategoryInput, CategoryUpdateQuery, categoryCodec, categoryListCodec } from "./categories";
 import {
     createdCodec,
@@ -64,6 +65,7 @@ import {
 
 /* `params` (query) and `data` (body) of each typed endpoint, with the OpenBoxes names. */
 type OBEndpointInputs = {
+    "get /getAppContext": NoInput;
     "get /products": Input<{ params?: ProductListParams }>;
     "get /products/availableItems": Input<{ params: AvailableItemsQuery }>;
     "post /products": Input<{ data: ProductInput }>;
@@ -125,6 +127,7 @@ type NoInput = Input<Record<never, never>>;
 
 /* The response codec of each endpoint: the runtime check and the response type come from it. */
 const ENDPOINT_CODECS = {
+    "get /getAppContext": appContextResponseCodec,
     "get /products": productListCodec,
     "get /products/availableItems": availableItemListCodec,
     "post /products": productCreatedCodec,

@@ -119,12 +119,13 @@ The paths are relative to `apiPath`. "nothing" means that the request resolves w
 
 #### Purchase orders and session
 
-| Method                                      | Request                                                             | Result                                         |
-| ------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------- |
-| `purchaseOrders.list({ max?, offset? })`    | `GET /purchaseOrders`                                               | `{ objects: OBPurchaseOrderSummary[], total }` |
-| `purchaseOrders.get(id)`                    | `GET /purchaseOrders/{id}`                                          | `OBPurchaseOrder`                              |
-| `purchaseOrders.delete(id)`, `rollback(id)` | `DELETE /purchaseOrders/{id}`, `POST /purchaseOrders/{id}/rollback` | nothing                                        |
-| `chooseLocation(locationId)`                | `GET /chooseLocation/{locationId}`                                  | nothing                                        |
+| Method                                      | Request                                                             | Result                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------- |
+| `purchaseOrders.list({ max?, offset? })`    | `GET /purchaseOrders`                                               | `{ objects: OBPurchaseOrderSummary[], total }`            |
+| `purchaseOrders.get(id)`                    | `GET /purchaseOrders/{id}`                                          | `OBPurchaseOrder`                                         |
+| `purchaseOrders.delete(id)`, `rollback(id)` | `DELETE /purchaseOrders/{id}`, `POST /purchaseOrders/{id}/rollback` | nothing                                                   |
+| `chooseLocation(locationId)`                | `GET /chooseLocation/{locationId}`                                  | nothing                                                   |
+| `appContext.get()`                          | `GET /getAppContext` (`500` without a session location)             | `OBAppContext` (`appVersion`, `buildNumber`, `buildDate`) |
 
 #### Generic API (`api.generic`)
 
@@ -206,6 +207,48 @@ The session location also controls permissions. A user with a role only at a loc
 The client checks each response. When a field it returns is missing or has a wrong type, the request rejects with an `HttpError` that names the request and the field, and keeps the response. Fields that the client does not return are ignored, so new fields in a newer OpenBoxes do not cause an error. A new value in a closed status set (the `OB_*` arrays) fails the check.
 
 For endpoints that ob-api does not type, use `requestUntyped` or the generic methods. They send any request and do not check the response.
+
+### SDK
+
+The SDK runs OpenBoxes protocols that need more than 1 request. It is a separate layer on top of the client: `OBSdk` sends every request through the `OBApi` that you give it, so both use 1 session. The method names tell you that a call sends several requests.
+
+```ts
+import { OBApi, OBSdk } from "@eyeseetea/ob-api";
+
+const api = new OBApi({ baseUrl, auth });
+const sdk = new OBSdk({ api });
+
+// 1 + page size requests: the list, then 1 read for each movement, for its documents.
+const { objects: movements, total } = await sdk.stockMovements
+    .listWithDocuments({ direction: "INBOUND", destination: locationId, max: 20 })
+    .getData();
+
+// chooseLocation, read the receipt, save it as PENDING, then complete it.
+await sdk.shipments
+    .receive({
+        shipmentId,
+        locationId, // the destination of the shipment
+        dateDelivered: new Date(),
+        items: [{ shipmentItemId, quantityReceiving: 5 }],
+    })
+    .getData();
+```
+
+- **Workflows.** Each workflow returns a `CancelableResponse`. `cancel()` stops the request in progress and sends no later request.
+- **`listWithDocuments`** reads 1 page, as `stockMovements.list` does. It sends at most 4 reads at the same time (`concurrency` option). When 1 read fails, the call fails.
+- **`receive`** copies the product, the lot and the expiry of each item from the receipt, because OpenBoxes receives the stock into the lot of the save body. It sends only the items that you give. Give each `shipmentItemId` once: the call rejects a repeated one before any request. It keeps the ids of a receipt that is already `PENDING`, so a second call after a failed completion continues the same receipt. While a receipt is `PENDING`, the receipt has only its saved items: continue it with those items. You decide which items, how many, and whether the shipment is already received.
+- **Session location.** A workflow with a `locationId` calls `chooseLocation` first. The workflows of 1 `OBSdk` that take a `locationId` run one at a time, so 2 receipts for 2 locations cannot change the location of each other. After the workflow, the session stays at that location. The lock does not cover your own `api.chooseLocation` or `api.login` calls: if you also change the location directly, give the SDK its own `OBApi`.
+- **Retries.** The SDK sends a failed `GET` again after a network error or status `429`, `502`, `503` or `504`: 3 attempts, with a wait of 500 ms, then 1000 ms. It never sends a write again. Set `retry: { attempts: 1 }` to turn the retries off, or change `delayMs`. `new OBSdk` throws a `RangeError` when `retry.attempts` or `concurrency` is not an integer of 1 or more, or when `delayMs` is less than 0.
+
+**Server version.** `sdk.serverVersion()` reads `appVersion` from `getAppContext` once and keeps it. It returns a `CancelableResponse`, as the workflows do. The callers share the read, so a cancel stops only the wait of its caller. OpenBoxes answers that read with `500` when the session has no location, so give a `locationId`, or give the version yourself:
+
+```ts
+const version = await sdk.serverVersion({ locationId }).getData(); // { appVersion: "0.9.7-SNAPSHOT", major: 0, minor: 9, patch: 7 }
+
+const sdkForKnownServer = new OBSdk({ api, version: "0.9.7" }); // sends no request for the version
+```
+
+The SDK has 1 interface for every OpenBoxes version: its inputs and results have the shapes of the reference version, `v0.9.7` (`OB_REFERENCE_VERSION`). When a server version needs other shapes, a version mapper inside the SDK changes them, and you still see the `v0.9.7` shapes. No mapper exists yet, and `sdk.capabilities()` returns `{}`: no workflow depends on the server version, so the workflows do not read it.
 
 ### URLs
 

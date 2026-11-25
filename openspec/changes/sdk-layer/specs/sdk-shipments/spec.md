@@ -49,6 +49,11 @@ For the `PENDING` save, the SDK SHALL send the `receiptId` of the `get` receipt,
 - **WHEN** the `get` receipt is `PENDING` with `receiptId: "r-1"` and `si-1` with `receiptItemId: "ri-1"`
 - **THEN** the `PENDING` save sends `receiptId: "r-1"` and `si-1` with `receiptItemId: "ri-1"`
 
+#### Scenario: Item not in a pending receipt
+
+- **WHEN** the `get` receipt is `PENDING` with only `si-1` (OpenBoxes v0.9.7 shows only the saved items of a `PENDING` receipt), and the caller gives `si-2`
+- **THEN** the call rejects with an error that names `si-2`, and sends no save
+
 #### Scenario: Container without a given item
 
 - **WHEN** the `get` receipt has container `C1` with `si-1` and container `C2` with `si-2`, and the caller gives only `si-1`
@@ -65,9 +70,14 @@ For the completion, the SDK SHALL send the same items with the `receiptId` of th
 
 ### Requirement: Check the receive input
 
-When `items` is empty, the call SHALL reject before it sends a request. When a `shipmentItemId` is not in the `get` receipt, or the `PENDING` answer has no `receiptItemId` for a given item, the call SHALL reject with an error that names that `shipmentItemId`, and SHALL NOT send the next save.
+When `items` is empty, or has a `shipmentItemId` more than once, the call SHALL reject before it sends a request, and the error SHALL name the repeated `shipmentItemId` values. When a `shipmentItemId` is not in the `get` receipt, or the `PENDING` answer has no `receiptItemId` for a given item, the call SHALL reject with an error that names that `shipmentItemId`, and SHALL NOT send the next save.
 
 #### Scenario: Unknown shipment item
 
 - **WHEN** the caller gives `si-9`, and the `get` receipt has no `si-9`
 - **THEN** the call rejects with an error that names `si-9`, after `get` and before any save
+
+#### Scenario: Item given more than once
+
+- **WHEN** the caller gives `si-1` 2 times in `items`
+- **THEN** the call rejects with an error that names `si-1`, before any request
