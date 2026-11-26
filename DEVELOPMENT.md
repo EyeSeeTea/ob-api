@@ -48,16 +48,21 @@ src/
                   map (endpoints.ts: method + path → params, body and response codec) and the
                   resource methods (one file for each resource) with their codecs (purify-ts);
                   generic.ts groups the resources of the OpenBoxes generic API (api.generic)
+  sdk/            The SDK layer (OBSdk): workflows of several requests on top of OBApi, with the
+                  session location lock, retries of temporary read failures, the server version
+                  and the version mappers
   repositories/   Interfaces and types: HttpClientRepository, HttpError, CancelableResponse
   data/           Implementations: FetchHttpClientRepository (keeps the session cookie in Node)
-  utils/          Shared utilities: URL and query string building, Set-Cookie parsing, Maybe
+  utils/          Shared utilities: URL and query string building, Set-Cookie parsing, Maybe, abort signals
   __tests__/      Test helpers shared by the specs (fetch stub); not built
   index.ts        Public exports
 ```
 
 The client depends on the `HttpClientRepository` interface, not on a specific HTTP library. A request goes `OBApi` (adds `apiPath`, unless the request sets `skipApiPrefix`) → session (logs in when necessary, retries once on `401`) → `HttpClientRepository` (adds `baseUrl`, sends with `fetch`). Requests return a `CancelableResponse`, the same type that d2-api returns, so apps can wrap both libraries the same way.
 
-A typed call adds 2 steps in front: a resource method (for example `api.stockMovements.get`) builds the OpenBoxes params and body → the typed `request` finds the endpoint in the map, builds the path, and checks the response with the endpoint's codec → `requestUntyped` (the path above). The resource method then makes the mechanical changes to the result: dotted keys to nested objects, `null` to `undefined`. Logic that sends several requests (chunks, workflows) does not belong in this layer; it goes in the later SDK layer.
+A typed call adds 2 steps in front: a resource method (for example `api.stockMovements.get`) builds the OpenBoxes params and body → the typed `request` finds the endpoint in the map, builds the path, and checks the response with the endpoint's codec → `requestUntyped` (the path above). The resource method then makes the mechanical changes to the result: dotted keys to nested objects, `null` to `undefined`. Logic that sends several requests (chunks, workflows) does not belong in this layer; it goes in the SDK layer.
+
+The SDK layer (`src/sdk/`) sits on top of `OBApi` and uses only its public methods; the low-level layer does not know the SDK. An SDK workflow goes `OBSdk.<resource>.<workflow>` → the session location lock (only for a workflow with a `locationId`, which calls `chooseLocation` first) → its steps: low-level resource methods, with retries for the `GET` steps, and pure functions that build the bodies → the typed call path above. Each workflow returns a `CancelableResponse`. The SDK inputs and results have the shapes of the reference OpenBoxes version (`v0.9.7`); a version difference goes in a version mapper of the step, chosen by the server version (`getAppContext`), not in the workflow code.
 
 The library must run in Node and in the browser. It uses one `fetch` backend, because `fetch` works in both, as in d2-api. OpenBoxes keeps the login session in a cookie. In Node, the client keeps the cookie from the login response and sends it with each request. In the browser, the browser keeps the cookie (`credentials: "include"`).
 

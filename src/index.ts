@@ -1,5 +1,6 @@
 export { OBApi } from "./api/OBApi";
 export type { OBApiOptions, OBApiRequest } from "./api/OBApi";
+export type { AppContext, OBAppContext } from "./api/appContext";
 export type { Categories, CategoryInput, CategoryUpdateQuery, OBCategory } from "./api/categories";
 export type {
     OBEndpointKey,
@@ -117,6 +118,14 @@ export type {
     StockTransferListParams,
     StockTransfers,
 } from "./api/stockTransfers";
+export { OBSdk } from "./sdk/OBSdk";
+export type { OBSdkOptions } from "./sdk/OBSdk";
+export type { RetryPolicy } from "./sdk/retry";
+export type { ServerVersionOptions } from "./sdk/serverVersion";
+export type { ReceiveItemInput, ReceiveShipmentInput, SdkShipments } from "./sdk/shipments";
+export type { SdkStockMovements } from "./sdk/stockMovements";
+export { OB_REFERENCE_VERSION } from "./sdk/version";
+export type { OBCapabilities, OBServerVersion, OBVersionString } from "./sdk/version";
 export { FetchHttpClientRepository } from "./data/FetchHttpClientRepository";
 export { CancelableResponse, isCancel } from "./repositories/CancelableResponse";
 export type { Canceler } from "./repositories/CancelableResponse";

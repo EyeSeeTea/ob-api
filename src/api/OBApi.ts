@@ -14,6 +14,7 @@ import {
     OBEndpointResponse,
     requestEndpoint,
 } from "./endpoints";
+import { AppContext, createAppContext } from "./appContext";
 import { Categories, createCategories } from "./categories";
 import { createGeneric, Generic } from "./generic";
 import { createLocations, Locations } from "./locations";
@@ -45,6 +46,7 @@ const PATCH_HEADERS = { "Content-Type": "application/json-patch+json" };
 export class OBApi {
     readonly baseUrl: string;
     readonly apiPath: string;
+    readonly appContext: AppContext;
     readonly products: Products;
     readonly productPackages: ProductPackages;
     readonly locations: Locations;
@@ -70,6 +72,7 @@ export class OBApi {
             loginUrl: joinPath(apiPath, "login"),
             chooseLocationUrl: joinPath(apiPath, "chooseLocation"),
         });
+        this.appContext = createAppContext(this);
         this.products = createProducts(this);
         this.productPackages = createProductPackages(this);
         this.locations = createLocations(this);
